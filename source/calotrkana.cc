@@ -202,7 +202,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     m_Hit_x[m_nHits] = tower_x;
     m_Hit_y[m_nHits] = tower_y;
     m_Hit_z[m_nHits] = tower_z;
-    m_Hit_t[m_nHits] = tower->get_time_float();
+    m_Hit_t[m_nHits] = tower->get_time_float()*sampletons;
     m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::cemcId);
     m_nHits++;
 
@@ -237,7 +237,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     m_Hit_x[m_nHits] = tower_x;
     m_Hit_y[m_nHits] = tower_y;
     m_Hit_z[m_nHits] = tower_z;
-    m_Hit_t[m_nHits] = tower->get_time_float();
+    m_Hit_t[m_nHits] = tower->get_time_float()*sampletons;
     m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::ihcalId);
     m_nHits++;
 
@@ -276,7 +276,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     m_Hit_x[m_nHits] = tower_x;
     m_Hit_y[m_nHits] = tower_y;
     m_Hit_z[m_nHits] = tower_z;
-    m_Hit_t[m_nHits] = tower->get_time_float();
+    m_Hit_t[m_nHits] = tower->get_time_float()*sampletons;
     m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::ohcalId);
     m_nHits++;
 
@@ -337,6 +337,8 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       for (int ipmt = 0; ipmt < mbdpmts->get_npmt(); ipmt++)
       {
         float mbdq = mbdpmts->get_pmt(ipmt)->get_q();
+        if (mbdq < 0.25) //from MBD reco hit threshold
+          continue;
         float mbdt = mbdpmts->get_pmt(ipmt)->get_time();
 
         float x = mbdgeom->get_x(ipmt);
@@ -390,7 +392,8 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       float z = global(2);
 
       float e = cluster->getAdc();
-      float t = cluster->getTime();
+      //float t = cluster->getTime();
+      float t = 0;
 
       m_Hit_E[m_nHits] = e;
       m_Hit_x[m_nHits] = x;

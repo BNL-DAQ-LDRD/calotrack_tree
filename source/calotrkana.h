@@ -53,7 +53,7 @@ public:
 
 private:
   TTree *T = nullptr;
-
+  const float sampletons = 50./3.;
   // all reco stuff
   static const int recomaxlength = 1E6;
   
