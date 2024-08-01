@@ -65,6 +65,13 @@
 #include <globalvertex/GlobalVertex.h>
 #include <globalvertex/GlobalVertexMap.h>
 
+#include <mbd/MbdGeom.h>
+#include <mbd/MbdOut.h>
+#include <mbd/MbdPmtContainer.h>
+#include <mbd/MbdPmtHit.h>
+
+#include <epd/EpdGeom.h>
+
 //tracking stuff
 #include <trackbase/ActsGeometry.h>
 #include <trackbase/ClusterErrorPara.h>
@@ -101,6 +108,7 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("Hit_y", &m_Hit_y, "Hit_y[nHits]/F");
   T->Branch("Hit_z", &m_Hit_z, "Hit_z[nHits]/F");
   T->Branch("Hit_t", &m_Hit_t, "Hit_t[nHits]/F");
+  T->Branch("Hit_detid", &m_Hit_detid, "Hit_detid[nHits]/I");
 
   T->Branch("nParticles", &m_nParticles, "nParticles/I");
   T->Branch("particle_pid", &m_particle_pid, "particle_pid[nParticles]/I");
@@ -195,6 +203,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     m_Hit_y[m_nHits] = tower_y;
     m_Hit_z[m_nHits] = tower_z;
     m_Hit_t[m_nHits] = tower->get_time_float();
+    m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::cemcId);
     m_nHits++;
 
     if(m_nHits >= recomaxlength){
@@ -229,6 +238,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     m_Hit_y[m_nHits] = tower_y;
     m_Hit_z[m_nHits] = tower_z;
     m_Hit_t[m_nHits] = tower->get_time_float();
+    m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::ihcalId);
     m_nHits++;
 
     if(m_nHits >= recomaxlength){
@@ -267,6 +277,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     m_Hit_y[m_nHits] = tower_y;
     m_Hit_z[m_nHits] = tower_z;
     m_Hit_t[m_nHits] = tower->get_time_float();
+    m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::ohcalId);
     m_nHits++;
 
     if(m_nHits >= recomaxlength){
@@ -274,6 +285,78 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       exit(1);
     }
   }
+
+  //SEPD
+  TowerInfoContainer *EPD_towers_sim =
+      findNode::getClass<TowerInfoContainer>(topNode, "TOWERINFO_CALIB_EPD");
+  EpdGeom *EPD_geom =
+      findNode::getClass<EpdGeom>(topNode, "TOWERGEOM_EPD");
+  if (!OHCAL_towers_sim || !OHCAL_geom) {
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No EPD "
+                 "towers found"
+              << std::endl;
+  }
+
+  unsigned int EPDsize = EPD_towers_sim->size();
+      for (unsigned int i = 0; i < EPDsize; i++)
+      {
+        TowerInfo *tower = EPD_towers_sim ->get_tower_at_channel(i);
+        unsigned int key = TowerInfoDefs::encode_epd(i);
+        if (tower->get_energy() < 0.05)
+          continue;
+        float r = EPD_geom->get_r(key);
+        float phi = EPD_geom->get_phi(key);
+        float z = EPD_geom->get_z(key);
+
+        float x = r * cos(phi);
+        float y = r * sin(phi);
+
+        m_Hit_E[m_nHits] = tower->get_energy();
+        m_Hit_x[m_nHits] = x;
+        m_Hit_y[m_nHits] = y;
+        m_Hit_z[m_nHits] = z;
+        m_Hit_t[m_nHits] = tower->get_time();
+        m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::epdId);
+        m_nHits++;
+
+        if(m_nHits >= recomaxlength){
+          std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nHits exceeds max length" << std::endl;
+          exit(1);
+        }
+
+      }
+
+      //MBD
+      MbdPmtContainer *mbdpmts = findNode::getClass<MbdPmtContainer>(topNode, "MbdPmtContainer");
+      MbdGeom *mbdgeom = findNode::getClass<MbdGeom>(topNode, "MbdGeom");
+      if (!mbdpmts || !mbdgeom) {
+        std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No MBD "
+                     "pmts found"
+                  << std::endl;
+      }
+      for (int ipmt = 0; ipmt < mbdpmts->get_npmt(); ipmt++)
+      {
+        float mbdq = mbdpmts->get_pmt(ipmt)->get_q();
+        float mbdt = mbdpmts->get_pmt(ipmt)->get_time();
+
+        float x = mbdgeom->get_x(ipmt);
+        float y = mbdgeom->get_y(ipmt);
+        float z = mbdgeom->get_z(ipmt);
+
+        m_Hit_E[m_nHits] = mbdq;
+        m_Hit_x[m_nHits] = x;
+        m_Hit_y[m_nHits] = y;
+        m_Hit_z[m_nHits] = z;
+        m_Hit_t[m_nHits] = mbdt;
+        m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::mbdId);
+        m_nHits++;
+
+        if(m_nHits >= recomaxlength){
+          std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nHits exceeds max length" << std::endl;
+          exit(1);
+        }
+      }
+
 
   // tracking
   ActsGeometry *m_tGeometry =
@@ -290,8 +373,11 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
                  "map found"
               << std::endl;
   }
+  
+  for(auto trkid:trkrlist){
+    int detectorId = static_cast<int>(trkid.first);
   for (const auto &hitsetkey :
-       clustermap->getHitSetKeys()) {
+       clustermap->getHitSetKeys(trkid.second)) {
     auto range = clustermap->getClusters(hitsetkey);
     for (auto clusterIter = range.first; clusterIter != range.second; ++clusterIter){
       const auto &key = clusterIter->first;
@@ -311,6 +397,8 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       m_Hit_y[m_nHits] = y;
       m_Hit_z[m_nHits] = z;
       m_Hit_t[m_nHits] = t;
+      m_Hit_detid[m_nHits] = detectorId;
+      
       m_nHits++;
 
       if(m_nHits >= recomaxlength){
@@ -319,6 +407,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       }
     }
   }
+}
 
   T->Fill();
   return Fun4AllReturnCodes::EVENT_OK;
