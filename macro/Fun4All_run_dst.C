@@ -38,6 +38,7 @@ void Fun4All_run_dst(
     //const string &inputFile1 = "dst_calo_cluster.list",
     const string &inputFile1 = "dst_calo_waveform.list",
     const string &inputFile2 = "dst_trkr_cluster.list",
+    const string &inputFile3 = "dst_mbd_epd.list",    
     const string &outputFile = "output_sim.root",
 
     const string &outputDSTFile = "DST_CALO_WAVEFORM_pp-0000000011-00000.root",
@@ -68,6 +69,10 @@ void Fun4All_run_dst(
   Fun4AllInputManager *TrkrIn = new Fun4AllDstInputManager("trkr");
   TrkrIn->AddListFile(inputFile2,1);
   se->registerInputManager(TrkrIn);
+
+  Fun4AllInputManager *MBDEPDIn = new Fun4AllDstInputManager("mbdepd");
+  MBDEPDIn->AddListFile(inputFile3,1);
+  se->registerInputManager(MBDEPDIn);
 
   Fun4AllInputManager *intrue2 = new Fun4AllRunNodeInputManager("DST_GEO");
   std::string geoLocation = CDBInterface::instance()->getUrl("calo_geo");

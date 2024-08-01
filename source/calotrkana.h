@@ -15,6 +15,8 @@
 #include <calobase/TowerInfoDefs.h>
 #include <caloreco/CaloTowerDefs.h>
 
+#include <trackbase/TrkrDefs.h>
+
 #include <string>
 
 namespace HepMC {
@@ -51,15 +53,16 @@ public:
 
 private:
   TTree *T = nullptr;
-
+  const float sampletons = 50./3.;
   // all reco stuff
   static const int recomaxlength = 1E6;
-
+  
   float m_Hit_E[recomaxlength] = {0};
   float m_Hit_x[recomaxlength] = {0};
   float m_Hit_y[recomaxlength] = {0};
   float m_Hit_z[recomaxlength] = {0};
   float m_Hit_t[recomaxlength] = {0};
+  int m_Hit_detid[recomaxlength] = {0};
   int m_nHits = 0;
   //sim stuff
   static const int ptruthmaxlength = 1E5;
@@ -72,6 +75,27 @@ private:
   float m_particle_vtx_y[ptruthmaxlength] = {0};
   float m_particle_vtx_z[ptruthmaxlength] = {0};
   int m_nParticles = 0;
+
+   enum detid{
+    mvtxId = 0,
+    inttId = 1,
+    tpcId = 2,
+    tpotId = 3,
+    cemcId = 4,
+    ihcalId = 5,
+    ohcalId = 6,
+    epdId = 7,
+    mbdId = 8
+  };
+
+  std::vector<std::pair<detid, TrkrDefs::TrkrId>> trkrlist = {
+        {mvtxId, TrkrDefs::mvtxId},
+        {inttId, TrkrDefs::inttId},
+        {tpcId, TrkrDefs::tpcId},
+        {tpotId, TrkrDefs::micromegasId}
+    };
+ 
+ 
 
   std::string Outfile;
   TFile *out;
