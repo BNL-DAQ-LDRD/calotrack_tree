@@ -340,6 +340,9 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
         if (mbdq < 0.25) //from MBD reco hit threshold
           continue;
         float mbdt = mbdpmts->get_pmt(ipmt)->get_time();
+        //check if mbdt is undefined
+        if(mbdt > 1E6)
+          continue;
 
         float x = mbdgeom->get_x(ipmt);
         float y = mbdgeom->get_y(ipmt);
