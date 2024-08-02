@@ -82,6 +82,8 @@
 #include <trackbase/TrkrDefs.h>  // for getTrkrId, getHit...
 #include <trackbase/TrkrHitTruthAssoc.h>
 
+#include <g4eval/SvtxEvalStack.h>
+
 //____________________________________________________________________________..
 calotrkana::calotrkana(const std::string &name = "calotrkana",
                const std::string &outName = "ZDCresult")
@@ -109,7 +111,6 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("Hit_z", &m_Hit_z, "Hit_z[nHits]/F");
   T->Branch("Hit_t", &m_Hit_t, "Hit_t[nHits]/F");
   T->Branch("Hit_detid", &m_Hit_detid, "Hit_detid[nHits]/I");
-
   T->Branch("nParticles", &m_nParticles, "nParticles/I");
   T->Branch("particle_pid", &m_particle_pid, "particle_pid[nParticles]/I");
   T->Branch("particle_energy", &m_particle_energy, "particle_energy[nParticles]/F");
@@ -119,6 +120,8 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("particle_vtx_x", &m_particle_vtx_x, "particle_vtx_x[nParticles]/F");
   T->Branch("particle_vtx_y", &m_particle_vtx_y, "particle_vtx_y[nParticles]/F");
   T->Branch("particle_vtx_z", &m_particle_vtx_z, "particle_vtx_z[nParticles]/F");
+  T->Branch("particle_track_id", &m_particle_track_id, "particle_track_id[nParticles]/I");
+  T->Branch("particle_primary_id", &m_particle_primary_id, "particle_primary_id[nParticles]/I");
 
 
   Fun4AllServer *se = Fun4AllServer::instance();
@@ -168,6 +171,9 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     m_particle_vtx_x[m_nParticles] = vtx->get_x();
     m_particle_vtx_y[m_nParticles] = vtx->get_y();
     m_particle_vtx_z[m_nParticles] = vtx->get_z();
+    //for secondary-primary association
+    m_particle_track_id[m_nParticles] = truth->get_track_id();
+    m_particle_primary_id[m_nParticles] = truth->get_primary_id();
     m_nParticles++;
     if(m_nParticles >= ptruthmaxlength){
       std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nParticles exceeds max length" << std::endl;
@@ -361,7 +367,16 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
           exit(1);
         }
       }
+  //find secondary particles associated with tack clusters
+  if (!m_svtxEvalStack)
+  {
+    m_svtxEvalStack = new SvtxEvalStack(topNode);
+  }
+  //do eval
+  m_svtxEvalStack->next_event(topNode);
 
+  /// Get the cluster evaluator
+  SvtxClusterEval *clustereval = m_svtxEvalStack->get_cluster_eval();
 
   // tracking
   ActsGeometry *m_tGeometry =
@@ -378,7 +393,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
                  "map found"
               << std::endl;
   }
-  
+  std::set<PHG4Particle*> all_truth_particles;
   for(auto trkid:trkrlist){
     int detectorId = static_cast<int>(trkid.first);
   for (const auto &hitsetkey :
@@ -387,6 +402,11 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     for (auto clusterIter = range.first; clusterIter != range.second; ++clusterIter){
       const auto &key = clusterIter->first;
       const auto &cluster = clusterIter->second;
+
+      std::set<PHG4Particle*> truth_withcluster = clustereval->all_truth_particles(key);
+      //merge the two sets
+      all_truth_particles.insert(truth_withcluster.begin(), truth_withcluster.end());
+
 
       const auto global = m_tGeometry->getGlobalPosition(key, cluster);
 
@@ -412,6 +432,28 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
         exit(1);
       }
     }
+  }
+}
+
+//get (secondary) truth particles associated with clusters
+for(auto truth:all_truth_particles){
+  int vtxid = truth->get_vtx_id();
+  PHG4VtxPoint *vtx = truthinfo->GetVtx(vtxid);
+  m_particle_pid[m_nParticles] = truth->get_pid();
+  m_particle_energy[m_nParticles] = truth->get_e();
+  m_particle_px[m_nParticles] = truth->get_px();
+  m_particle_py[m_nParticles] = truth->get_py();
+  m_particle_pz[m_nParticles] = truth->get_pz();
+  m_particle_vtx_x[m_nParticles] = vtx->get_x();
+  m_particle_vtx_y[m_nParticles] = vtx->get_y();
+  m_particle_vtx_z[m_nParticles] = vtx->get_z();
+  m_particle_track_id[m_nParticles] = truth->get_track_id();
+  m_particle_primary_id[m_nParticles] = truth->get_primary_id();
+  m_nParticles++;
+
+  if(m_nParticles >= ptruthmaxlength){
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nParticles exceeds max length" << std::endl;
+    exit(1);
   }
 }
 

@@ -28,6 +28,7 @@ class Fun4AllHistoManager;
 class PHG4Hit;
 class PHG4CylinderCellGeom_Spacalv1;
 class PHG4CylinderGeom_Spacalv3;
+class SvtxEvalStack;
 
 class calotrkana : public SubsysReco {
 public:
@@ -74,6 +75,8 @@ private:
   float m_particle_vtx_x[ptruthmaxlength] = {0};
   float m_particle_vtx_y[ptruthmaxlength] = {0};
   float m_particle_vtx_z[ptruthmaxlength] = {0};
+  int m_particle_track_id[ptruthmaxlength] = {0};
+  int m_particle_primary_id[ptruthmaxlength] = {0};
   int m_nParticles = 0;
 
    enum detid{
@@ -94,6 +97,8 @@ private:
         {tpcId, TrkrDefs::tpcId},
         {tpotId, TrkrDefs::micromegasId}
     };
+
+  SvtxEvalStack *m_svtxEvalStack = nullptr;
  
  
 
