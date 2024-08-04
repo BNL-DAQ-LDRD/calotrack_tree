@@ -568,6 +568,8 @@ int calotrkana::ResetEvent(PHCompositeNode *topNode) {
 
   m_nHits = 0;
   m_nParticles = 0;
+  m_nRecoClusters = 0;
+  m_nTruthClusters = 0;
 
   return Fun4AllReturnCodes::EVENT_OK;
 }
