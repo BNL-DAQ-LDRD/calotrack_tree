@@ -65,6 +65,32 @@ private:
   float m_Hit_t[recomaxlength] = {0};
   int m_Hit_detid[recomaxlength] = {0};
   int m_nHits = 0;
+  //I'm seperating the traking clusters from the rest
+  static const int trackrecoclustermaxlength = 1E5;
+  float m_reco_cluster_E[trackrecoclustermaxlength] = {0};
+  float m_reco_cluster_x[trackrecoclustermaxlength] = {0};
+  float m_reco_cluster_y[trackrecoclustermaxlength] = {0};
+  float m_reco_cluster_z[trackrecoclustermaxlength] = {0};
+  //only INTT has a crossing id and MVTX has a strobe id(but for no pileup it's probably always 0)
+  float m_reco_cluster_t[trackrecoclustermaxlength] = {0};
+  int m_reco_cluster_detid[trackrecoclustermaxlength] = {0};
+  //best matching truth cluster
+  unsigned int m_reco_cluster_trcluster_id[trackrecoclustermaxlength] = {0};
+  int m_nRecoClusters = 0;
+  //truth cluster
+  static const int truthclustermaxlength = 1E5;
+  float m_truth_cluster_E[truthclustermaxlength] = {0};
+  float m_truth_cluster_x[truthclustermaxlength] = {0};
+  float m_truth_cluster_y[truthclustermaxlength] = {0};
+  float m_truth_cluster_z[truthclustermaxlength] = {0};
+  //looking at the code that generate the truth cluster, it seems that the time is always 0???
+  float m_truth_cluster_t[truthclustermaxlength] = {0};
+  int m_truth_cluster_detid[truthclustermaxlength] = {0};
+  unsigned int m_truth_cluster_id[truthclustermaxlength] = {0};
+  //the track id for the truth particle that generated the truth cluster
+  int m_truth_cluster_trparticle_track_id[truthclustermaxlength] = {0};
+  int m_nTruthClusters = 0;
+
   //sim stuff
   static const int ptruthmaxlength = 1E5;
   int m_particle_pid[ptruthmaxlength] = {0};

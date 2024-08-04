@@ -81,6 +81,8 @@
 #include <trackbase/TrkrClusterHitAssoc.h>
 #include <trackbase/TrkrDefs.h>  // for getTrkrId, getHit...
 #include <trackbase/TrkrHitTruthAssoc.h>
+#include <trackbase/MvtxDefs.h>
+#include <trackbase/InttDefs.h>
 
 #include <g4eval/SvtxEvalStack.h>
 
@@ -122,6 +124,24 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("particle_vtx_z", &m_particle_vtx_z, "particle_vtx_z[nParticles]/F");
   T->Branch("particle_track_id", &m_particle_track_id, "particle_track_id[nParticles]/I");
   T->Branch("particle_primary_id", &m_particle_primary_id, "particle_primary_id[nParticles]/I");
+  T->Branch("nRecoClusters", &m_nRecoClusters, "nRecoClusters/I");
+  T->Branch("reco_cluster_E", &m_reco_cluster_E, "reco_cluster_E[nRecoClusters]/F");
+  T->Branch("reco_cluster_x", &m_reco_cluster_x, "reco_cluster_x[nRecoClusters]/F");
+  T->Branch("reco_cluster_y", &m_reco_cluster_y, "reco_cluster_y[nRecoClusters]/F");
+  T->Branch("reco_cluster_z", &m_reco_cluster_z, "reco_cluster_z[nRecoClusters]/F");
+  T->Branch("reco_cluster_t", &m_reco_cluster_t, "reco_cluster_t[nRecoClusters]/F");
+  T->Branch("reco_cluster_detid", &m_reco_cluster_detid, "reco_cluster_detid[nRecoClusters]/I");
+  T->Branch("reco_cluster_trcluster_id", &m_reco_cluster_trcluster_id, "reco_cluster_trcluster_id[nRecoClusters]/i");
+  T->Branch("nTruthClusters", &m_nTruthClusters, "nTruthClusters/I");
+  T->Branch("truth_cluster_E", &m_truth_cluster_E, "truth_cluster_E[nTruthClusters]/F");
+  T->Branch("truth_cluster_x", &m_truth_cluster_x, "truth_cluster_x[nTruthClusters]/F");
+  T->Branch("truth_cluster_y", &m_truth_cluster_y, "truth_cluster_y[nTruthClusters]/F");
+  T->Branch("truth_cluster_z", &m_truth_cluster_z, "truth_cluster_z[nTruthClusters]/F");
+  T->Branch("truth_cluster_t", &m_truth_cluster_t, "truth_cluster_t[nTruthClusters]/F");
+  T->Branch("truth_cluster_detid", &m_truth_cluster_detid, "truth_cluster_detid[nTruthClusters]/I");
+  T->Branch("truth_cluster_id", &m_truth_cluster_id, "truth_cluster_id[nTruthClusters]/i");
+  T->Branch("truth_cluster_trparticle_track_id", &m_truth_cluster_trparticle_track_id, "truth_cluster_trparticle_track_id[nTruthClusters]/I");
+
 
 
   Fun4AllServer *se = Fun4AllServer::instance();
@@ -154,31 +174,12 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
   // loop over truth primary particles
   PHG4TruthInfoContainer::ConstRange range =
       truthinfo->GetPrimaryParticleRange();
-  // set of primary pi0 trk id
-  std::set<int> primary_pi0_trk_id;
+  // set of primary particles
+  std::set<PHG4Particle*> primary_particles;
   for (PHG4TruthInfoContainer::ConstIterator truth_itr = range.first;
        truth_itr != range.second; ++truth_itr) {
     PHG4Particle *truth = truth_itr->second;
-    // get track id and check if embedded
-    int vtxid = truth->get_vtx_id();
-    PHG4VtxPoint *vtx = truthinfo->GetVtx(vtxid);
-
-    m_particle_pid[m_nParticles] = truth->get_pid();
-    m_particle_energy[m_nParticles] = truth->get_e();
-    m_particle_px[m_nParticles] = truth->get_px();
-    m_particle_py[m_nParticles] = truth->get_py();
-    m_particle_pz[m_nParticles] = truth->get_pz();
-    m_particle_vtx_x[m_nParticles] = vtx->get_x();
-    m_particle_vtx_y[m_nParticles] = vtx->get_y();
-    m_particle_vtx_z[m_nParticles] = vtx->get_z();
-    //for secondary-primary association
-    m_particle_track_id[m_nParticles] = truth->get_track_id();
-    m_particle_primary_id[m_nParticles] = truth->get_primary_id();
-    m_nParticles++;
-    if(m_nParticles >= ptruthmaxlength){
-      std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nParticles exceeds max length" << std::endl;
-      exit(1);
-    }
+    primary_particles.insert(truth);
 
     
   }
@@ -377,7 +378,9 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
 
   /// Get the cluster evaluator
   SvtxClusterEval *clustereval = m_svtxEvalStack->get_cluster_eval();
-
+  //clustereval->set_verbosity(1);
+  SvtxTruthEval *trutheval = m_svtxEvalStack->get_truth_eval();
+  //trutheval->set_verbosity(2);
   // tracking
   ActsGeometry *m_tGeometry =
       findNode::getClass<ActsGeometry>(topNode, "ActsGeometry");
@@ -394,8 +397,9 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
               << std::endl;
   }
   std::set<PHG4Particle*> all_truth_particles;
+  std::map<TrkrDefs::cluskey, std::shared_ptr<TrkrCluster>> alltruthclusters;
   for(auto trkid:trkrlist){
-    int detectorId = static_cast<int>(trkid.first);
+
   for (const auto &hitsetkey :
        clustermap->getHitSetKeys(trkid.second)) {
     auto range = clustermap->getClusters(hitsetkey);
@@ -403,7 +407,14 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       const auto &key = clusterIter->first;
       const auto &cluster = clusterIter->second;
 
+      //uint8_t layer = TrkrDefs::getLayer(key);
+      //std::cout<<"layer: "<<(int)layer<<std::endl;
+
       std::set<PHG4Particle*> truth_withcluster = clustereval->all_truth_particles(key);
+      //check if the set it empty
+      if(truth_withcluster.empty()){
+        std::cout << "calotrkana::process_event(PHCompositeNode *topNode) truth_withcluster is empty" << std::endl;
+      }
       //merge the two sets
       all_truth_particles.insert(truth_withcluster.begin(), truth_withcluster.end());
 
@@ -417,25 +428,116 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       float e = cluster->getAdc();
       //float t = cluster->getTime();
       float t = 0;
+      //strobe for mvtx, crossing for intt
+      if(trkid.second == TrkrDefs::TrkrId::mvtxId){
+        t = MvtxDefs::getStrobeId(key);
+      }
+      else if(trkid.second == TrkrDefs::TrkrId::inttId){
+        t = InttDefs::getTimeBucketId(key); 
+      }
+      else{
+        t = 0;
+      }
+      // find the truth cluster
+      std::pair<TrkrDefs::cluskey, std::shared_ptr<TrkrCluster>> truth_cluster_pair = clustereval->max_truth_cluster_by_energy(key);
+      TrkrDefs::cluskey truth_ckey = truth_cluster_pair.first;
+      std::shared_ptr<TrkrCluster> truth_cluster = truth_cluster_pair.second;
+      //put it into the truth cluster map shift the id up by 1 and left 0 for unmatched clusters
+      unsigned int clusterid = (unsigned int)TrkrDefs::getClusIndex(truth_ckey);
+      //check if truth cluster is nullptr
+      if(truth_cluster){
+        alltruthclusters[truth_ckey] = truth_cluster;
+        clusterid++;
+      }
+      /*
+      else{
+        std::cout << "calotrkana::process_event(PHCompositeNode *topNode) truth cluster is nullptr" << std::endl;
+      }
+      */
+      m_reco_cluster_E[m_nRecoClusters] = e;
+      m_reco_cluster_x[m_nRecoClusters] = x;
+      m_reco_cluster_y[m_nRecoClusters] = y;
+      m_reco_cluster_z[m_nRecoClusters] = z;
+      m_reco_cluster_t[m_nRecoClusters] = t;
+      m_reco_cluster_detid[m_nRecoClusters] = static_cast<int>(TrkrDefs::getTrkrId(key));
+      m_reco_cluster_trcluster_id[m_nRecoClusters] = clusterid;
+      m_nRecoClusters++;
 
-      m_Hit_E[m_nHits] = e;
-      m_Hit_x[m_nHits] = x;
-      m_Hit_y[m_nHits] = y;
-      m_Hit_z[m_nHits] = z;
-      m_Hit_t[m_nHits] = t;
-      m_Hit_detid[m_nHits] = detectorId;
-      
-      m_nHits++;
-
-      if(m_nHits >= recomaxlength){
-        std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nHits exceeds max length" << std::endl;
+      if(m_nRecoClusters >= trackrecoclustermaxlength){
+        std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nRecoClusters exceeds max length" << std::endl;
         exit(1);
       }
+     
     }
   }
 }
+//loop over all truth particles and find all associated truth clusters(just in case there are truth cluster that are not associated by any reco clusters)
+//maybe unnecessary...just to be safe :)
+for(auto truth:all_truth_particles){
+  std::map<TrkrDefs::cluskey, std::shared_ptr<TrkrCluster>> truth_clusters = trutheval->all_truth_clusters(truth);
+  //merge the two maps
+  alltruthclusters.insert(truth_clusters.begin(), truth_clusters.end());
+}
+
+for(auto truth:alltruthclusters){
+  const auto &key = truth.first;
+  const auto &cluster = truth.second;
+
+  float x = cluster->getPosition(0);
+  float y = cluster->getPosition(1);
+  float z = cluster->getPosition(2);
+
+  float e = cluster->getAdc();
+  //float t = cluster->getTime();
+  float t = 0;
+  //strobe for mvtx, crossing for intt,(however this is all zero for truth clusters?)
+  //https://github.com/sPHENIX-Collaboration/coresoftware/blob/master/simulation/g4simulation/g4eval/SvtxTruthEval.cc#L351
+  if(TrkrDefs::getTrkrId(key) == TrkrDefs::TrkrId::mvtxId){
+    t = MvtxDefs::getStrobeId(key);
+  }
+  else if(TrkrDefs::getTrkrId(key) == TrkrDefs::TrkrId::inttId){
+    t = InttDefs::getTimeBucketId(key); 
+  }
+  else{
+    t = 0;
+  }
+  //get truth G4Hit
+  std::set<PHG4Hit*> g4hits = trutheval->get_truth_hits_from_truth_cluster(key);
+  //for truth clusters all hits are belong to the same particle
+  //check if g4hits is empty
+  if(g4hits.empty()){
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) g4hits for a truth cluster is empty something is very wrong" << std::endl;
+    exit(1);
+  }
+
+  PHG4Particle *truth_particle = trutheval->get_particle(*g4hits.begin());
+  int truth_particle_trackid = truth_particle->get_track_id();
+  //std::cout<<"truth_particle_trackid: "<<truth_particle_trackid<<std::endl;
+  
+  //cluster shift up by 1
+  unsigned int clusterid = (unsigned int)TrkrDefs::getClusIndex(key) + 1;
+  m_truth_cluster_E[m_nTruthClusters] = e;
+  m_truth_cluster_x[m_nTruthClusters] = x;
+  m_truth_cluster_y[m_nTruthClusters] = y;
+  m_truth_cluster_z[m_nTruthClusters] = z;
+  m_truth_cluster_t[m_nTruthClusters] = t;
+  m_truth_cluster_id[m_nTruthClusters] = clusterid;
+  m_truth_cluster_trparticle_track_id[m_nTruthClusters] = truth_particle_trackid;
+  //std::cout<<"truth_particle_trackid: "<<truth_particle_trackid<<std::endl;
+  m_truth_cluster_detid[m_nTruthClusters] = static_cast<int>(TrkrDefs::getTrkrId(key));
+  m_nTruthClusters++;
+
+  if(m_nTruthClusters >= truthclustermaxlength){
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nTruthClusters exceeds max length" << std::endl;
+    exit(1);
+  }
+}
+
+
+
 
 //get (secondary) truth particles associated with clusters
+all_truth_particles.insert(primary_particles.begin(), primary_particles.end());
 for(auto truth:all_truth_particles){
   int vtxid = truth->get_vtx_id();
   PHG4VtxPoint *vtx = truthinfo->GetVtx(vtxid);
