@@ -29,6 +29,7 @@ class PHG4Hit;
 class PHG4CylinderCellGeom_Spacalv1;
 class PHG4CylinderGeom_Spacalv3;
 class SvtxEvalStack;
+class TDatabasePDG;
 
 class calotrkana : public SubsysReco {
 public:
@@ -103,6 +104,9 @@ private:
   float m_particle_vtx_z[ptruthmaxlength] = {0};
   int m_particle_track_id[ptruthmaxlength] = {0};
   int m_particle_primary_id[ptruthmaxlength] = {0};
+  int m_particle_is_pythia_primary[ptruthmaxlength] = {0};
+  int m_particle_is_embedded[ptruthmaxlength] = {0};
+  int m_particle_charge[ptruthmaxlength] = {0};
   int m_nParticles = 0;
 
    enum detid{
@@ -127,7 +131,7 @@ private:
   SvtxEvalStack *m_svtxEvalStack = nullptr;
  
  
-
+  TDatabasePDG *_pdg = nullptr;
   std::string Outfile;
   TFile *out;
 
