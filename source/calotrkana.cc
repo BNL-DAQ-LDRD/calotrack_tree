@@ -124,6 +124,9 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("particle_vtx_z", &m_particle_vtx_z, "particle_vtx_z[nParticles]/F");
   T->Branch("particle_track_id", &m_particle_track_id, "particle_track_id[nParticles]/I");
   T->Branch("particle_primary_id", &m_particle_primary_id, "particle_primary_id[nParticles]/I");
+  T->Branch("particle_is_pythia_primary", &m_particle_is_pythia_primary, "particle_is_pythia_primary[nParticles]/I");
+  T->Branch("particle_is_embedded", &m_particle_is_embedded, "particle_is_embedded[nParticles]/I");
+  T->Branch("particle_charge", &m_particle_charge, "particle_charge[nParticles]/I");
   T->Branch("nRecoClusters", &m_nRecoClusters, "nRecoClusters/I");
   T->Branch("reco_cluster_E", &m_reco_cluster_E, "reco_cluster_E[nRecoClusters]/F");
   T->Branch("reco_cluster_x", &m_reco_cluster_x, "reco_cluster_x[nRecoClusters]/F");
@@ -143,7 +146,7 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("truth_cluster_trparticle_track_id", &m_truth_cluster_trparticle_track_id, "truth_cluster_trparticle_track_id[nTruthClusters]/I");
 
 
-
+  _pdg = new TDatabasePDG();
   Fun4AllServer *se = Fun4AllServer::instance();
   se->Print("NODETREE");
 
@@ -180,8 +183,6 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
        truth_itr != range.second; ++truth_itr) {
     PHG4Particle *truth = truth_itr->second;
     primary_particles.insert(truth);
-
-    
   }
 
   // CEMC
@@ -396,6 +397,15 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
                  "map found"
               << std::endl;
   }
+  /*
+  TrkrClusterContainer *truthclustermap = 
+      findNode::getClass<TrkrClusterContainer>(topNode, "TRKR_TRUTHCLUSTERCONTAINER");
+  if (!truthclustermap) {
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No truth cluster "
+                 "map found"
+              << std::endl;
+  }
+  */
   std::set<PHG4Particle*> all_truth_particles;
   std::map<TrkrDefs::cluskey, std::shared_ptr<TrkrCluster>> alltruthclusters;
   for(auto trkid:trkrlist){
@@ -403,6 +413,17 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
   for (const auto &hitsetkey :
        clustermap->getHitSetKeys(trkid.second)) {
     auto range = clustermap->getClusters(hitsetkey);
+    //this part somehow currpt the memory...
+    /*
+    auto truthrange = truthclustermap->getClusters(hitsetkey);
+    for (auto clusterIter = truthrange.first; clusterIter != truthrange.second; ++clusterIter){
+      const auto &key = clusterIter->first;
+      //const auto &cluster = clusterIter->second;
+      std::shared_ptr<TrkrCluster> truth_cluster = std::make_shared<TrkrCluster>(*clusterIter->second);
+      //make pair
+      alltruthclusters.insert(std::make_pair(key, truth_cluster));
+    }
+    */
     for (auto clusterIter = range.first; clusterIter != range.second; ++clusterIter){
       const auto &key = clusterIter->first;
       const auto &cluster = clusterIter->second;
@@ -479,10 +500,14 @@ for(auto truth:all_truth_particles){
   alltruthclusters.insert(truth_clusters.begin(), truth_clusters.end());
 }
 
+
 for(auto truth:alltruthclusters){
   const auto &key = truth.first;
   const auto &cluster = truth.second;
-
+  if(!cluster){
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) cluster is nullptr" << std::endl;
+    continue;
+  }
   float x = cluster->getPosition(0);
   float y = cluster->getPosition(1);
   float z = cluster->getPosition(2);
@@ -505,13 +530,12 @@ for(auto truth:alltruthclusters){
   std::set<PHG4Hit*> g4hits = trutheval->get_truth_hits_from_truth_cluster(key);
   //for truth clusters all hits are belong to the same particle
   //check if g4hits is empty
-  if(g4hits.empty()){
-    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) g4hits for a truth cluster is empty something is very wrong" << std::endl;
-    exit(1);
+  int truth_particle_trackid = 0;
+  if(!g4hits.empty()){
+    PHG4Particle *truth_particle = trutheval->get_particle(*g4hits.begin());
+    truth_particle_trackid = truth_particle->get_track_id();
   }
 
-  PHG4Particle *truth_particle = trutheval->get_particle(*g4hits.begin());
-  int truth_particle_trackid = truth_particle->get_track_id();
   //std::cout<<"truth_particle_trackid: "<<truth_particle_trackid<<std::endl;
   
   //cluster shift up by 1
@@ -540,6 +564,15 @@ for(auto truth:alltruthclusters){
 all_truth_particles.insert(primary_particles.begin(), primary_particles.end());
 for(auto truth:all_truth_particles){
   int vtxid = truth->get_vtx_id();
+  int is_pythia_primary = trutheval->is_primary(truth);
+  int is_embedded = trutheval->get_embed(truth);
+  int pid = truth->get_pid();
+  TParticlePDG *partinfo = _pdg->GetParticle(pid);
+  float charge = -9999.;
+  if (partinfo)
+  {
+    charge = partinfo->Charge() / 3; // PDG gives charge in 1/3 e
+  }
   PHG4VtxPoint *vtx = truthinfo->GetVtx(vtxid);
   m_particle_pid[m_nParticles] = truth->get_pid();
   m_particle_energy[m_nParticles] = truth->get_e();
@@ -551,6 +584,9 @@ for(auto truth:all_truth_particles){
   m_particle_vtx_z[m_nParticles] = vtx->get_z();
   m_particle_track_id[m_nParticles] = truth->get_track_id();
   m_particle_primary_id[m_nParticles] = truth->get_primary_id();
+  m_particle_is_pythia_primary[m_nParticles] = is_pythia_primary;
+  m_particle_is_embedded[m_nParticles] = is_embedded;
+  m_particle_charge[m_nParticles] = (int)charge;
   m_nParticles++;
 
   if(m_nParticles >= ptruthmaxlength){
