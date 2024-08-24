@@ -77,6 +77,8 @@ private:
   int m_reco_cluster_detid[trackrecoclustermaxlength] = {0};
   //best matching truth cluster
   unsigned int m_reco_cluster_trcluster_id[trackrecoclustermaxlength] = {0};
+  //best matching G4Hit
+  ULong64_t m_reco_cluster_g4hit_id[trackrecoclustermaxlength] = {0};
   int m_nRecoClusters = 0;
   //truth cluster
   static const int truthclustermaxlength = 1E5;
@@ -92,6 +94,16 @@ private:
   int m_truth_cluster_trparticle_track_id[truthclustermaxlength] = {0};
   int m_nTruthClusters = 0;
 
+  static const int truthtrackg4hitmaxlength = 1E5;
+  float m_track_g4hit_x[truthtrackg4hitmaxlength] = {0};
+  float m_track_g4hit_y[truthtrackg4hitmaxlength] = {0};
+  float m_track_g4hit_z[truthtrackg4hitmaxlength] = {0};
+  float m_track_g4hit_t[truthtrackg4hitmaxlength] = {0};
+  float m_track_g4hit_E[truthtrackg4hitmaxlength] = {0};
+  int m_track_g4hit_trparticle_track_id[truthtrackg4hitmaxlength] = {0};
+  ULong64_t m_track_g4hit_id[truthtrackg4hitmaxlength] = {0};
+  int m_nTrackG4Hits = 0;
+
   //sim stuff
   static const int ptruthmaxlength = 1E5;
   int m_particle_pid[ptruthmaxlength] = {0};
@@ -104,6 +116,7 @@ private:
   float m_particle_vtx_z[ptruthmaxlength] = {0};
   int m_particle_track_id[ptruthmaxlength] = {0};
   int m_particle_primary_id[ptruthmaxlength] = {0};
+  int m_particle_parent_id[ptruthmaxlength] = {0};
   int m_particle_is_pythia_primary[ptruthmaxlength] = {0};
   int m_particle_is_embedded[ptruthmaxlength] = {0};
   int m_particle_charge[ptruthmaxlength] = {0};
