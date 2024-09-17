@@ -124,6 +124,10 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("particle_vtx_z", &m_particle_vtx_z, "particle_vtx_z[nParticles]/F");
   T->Branch("particle_track_id", &m_particle_track_id, "particle_track_id[nParticles]/I");
   T->Branch("particle_primary_id", &m_particle_primary_id, "particle_primary_id[nParticles]/I");
+  T->Branch("particle_parent_id", &m_particle_parent_id, "particle_parent_id[nParticles]/I");
+  T->Branch("particle_is_pythia_primary", &m_particle_is_pythia_primary, "particle_is_pythia_primary[nParticles]/I");
+  T->Branch("particle_is_embedded", &m_particle_is_embedded, "particle_is_embedded[nParticles]/I");
+  T->Branch("particle_charge", &m_particle_charge, "particle_charge[nParticles]/I");
   T->Branch("nRecoClusters", &m_nRecoClusters, "nRecoClusters/I");
   T->Branch("reco_cluster_E", &m_reco_cluster_E, "reco_cluster_E[nRecoClusters]/F");
   T->Branch("reco_cluster_x", &m_reco_cluster_x, "reco_cluster_x[nRecoClusters]/F");
@@ -132,6 +136,7 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("reco_cluster_t", &m_reco_cluster_t, "reco_cluster_t[nRecoClusters]/F");
   T->Branch("reco_cluster_detid", &m_reco_cluster_detid, "reco_cluster_detid[nRecoClusters]/I");
   T->Branch("reco_cluster_trcluster_id", &m_reco_cluster_trcluster_id, "reco_cluster_trcluster_id[nRecoClusters]/i");
+  T->Branch("reco_cluster_g4hit_id", &m_reco_cluster_g4hit_id, "reco_cluster_g4hit_id[nRecoClusters]/l");
   T->Branch("nTruthClusters", &m_nTruthClusters, "nTruthClusters/I");
   T->Branch("truth_cluster_E", &m_truth_cluster_E, "truth_cluster_E[nTruthClusters]/F");
   T->Branch("truth_cluster_x", &m_truth_cluster_x, "truth_cluster_x[nTruthClusters]/F");
@@ -141,9 +146,18 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("truth_cluster_detid", &m_truth_cluster_detid, "truth_cluster_detid[nTruthClusters]/I");
   T->Branch("truth_cluster_id", &m_truth_cluster_id, "truth_cluster_id[nTruthClusters]/i");
   T->Branch("truth_cluster_trparticle_track_id", &m_truth_cluster_trparticle_track_id, "truth_cluster_trparticle_track_id[nTruthClusters]/I");
+  T->Branch("nTrackG4Hits", &m_nTrackG4Hits, "nTrackG4Hits/I");
+  T->Branch("track_g4hit_x", &m_track_g4hit_x, "track_g4hit_x[nTrackG4Hits]/F");
+  T->Branch("track_g4hit_y", &m_track_g4hit_y, "track_g4hit_y[nTrackG4Hits]/F");
+  T->Branch("track_g4hit_z", &m_track_g4hit_z, "track_g4hit_z[nTrackG4Hits]/F");
+  T->Branch("track_g4hit_t", &m_track_g4hit_t, "track_g4hit_t[nTrackG4Hits]/F");
+  T->Branch("track_g4hit_E", &m_track_g4hit_E, "track_g4hit_E[nTrackG4Hits]/F");
+  T->Branch("track_g4hit_trparticle_track_id", &m_track_g4hit_trparticle_track_id, "track_g4hit_trparticle_track_id[nTrackG4Hits]/I");
+  T->Branch("track_g4hit_id", &m_track_g4hit_id, "track_g4hit_id[nTrackG4Hits]/l");
 
 
 
+  _pdg = new TDatabasePDG();
   Fun4AllServer *se = Fun4AllServer::instance();
   se->Print("NODETREE");
 
@@ -180,8 +194,6 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
        truth_itr != range.second; ++truth_itr) {
     PHG4Particle *truth = truth_itr->second;
     primary_particles.insert(truth);
-
-    
   }
 
   // CEMC
@@ -396,13 +408,34 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
                  "map found"
               << std::endl;
   }
+  /*
+  TrkrClusterContainer *truthclustermap = 
+      findNode::getClass<TrkrClusterContainer>(topNode, "TRKR_TRUTHCLUSTERCONTAINER");
+  if (!truthclustermap) {
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No truth cluster "
+                 "map found"
+              << std::endl;
+  }
+  */
   std::set<PHG4Particle*> all_truth_particles;
+  std::set<PHG4Hit*> all_track_g4hits;
   std::map<TrkrDefs::cluskey, std::shared_ptr<TrkrCluster>> alltruthclusters;
   for(auto trkid:trkrlist){
 
   for (const auto &hitsetkey :
        clustermap->getHitSetKeys(trkid.second)) {
     auto range = clustermap->getClusters(hitsetkey);
+    //this part somehow currpt the memory...
+    /*
+    auto truthrange = truthclustermap->getClusters(hitsetkey);
+    for (auto clusterIter = truthrange.first; clusterIter != truthrange.second; ++clusterIter){
+      const auto &key = clusterIter->first;
+      //const auto &cluster = clusterIter->second;
+      std::shared_ptr<TrkrCluster> truth_cluster = std::make_shared<TrkrCluster>(*clusterIter->second);
+      //make pair
+      alltruthclusters.insert(std::make_pair(key, truth_cluster));
+    }
+    */
     for (auto clusterIter = range.first; clusterIter != range.second; ++clusterIter){
       const auto &key = clusterIter->first;
       const auto &cluster = clusterIter->second;
@@ -417,6 +450,12 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       }
       //merge the two sets
       all_truth_particles.insert(truth_withcluster.begin(), truth_withcluster.end());
+
+      std::set<PHG4Hit*> g4hits = clustereval->all_truth_hits(key);
+      if(g4hits.empty()){
+        std::cout << "calotrkana::process_event(PHCompositeNode *topNode) g4hits is empty" << std::endl;
+      }
+      all_track_g4hits.insert(g4hits.begin(), g4hits.end());
 
 
       const auto global = m_tGeometry->getGlobalPosition(key, cluster);
@@ -449,6 +488,16 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
         alltruthclusters[truth_ckey] = truth_cluster;
         clusterid++;
       }
+      else{
+        //not matched set to NULL
+        clusterid = 0;
+      }
+      //find the best matched G4Hit
+      PHG4Hit *g4hit = clustereval->max_truth_hit_by_energy(key);
+      ULong64_t g4hit_id = 0;
+      if(g4hit){
+        g4hit_id = g4hit->get_hit_id();
+      }
       /*
       else{
         std::cout << "calotrkana::process_event(PHCompositeNode *topNode) truth cluster is nullptr" << std::endl;
@@ -461,6 +510,7 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       m_reco_cluster_t[m_nRecoClusters] = t;
       m_reco_cluster_detid[m_nRecoClusters] = static_cast<int>(TrkrDefs::getTrkrId(key));
       m_reco_cluster_trcluster_id[m_nRecoClusters] = clusterid;
+      m_reco_cluster_g4hit_id[m_nRecoClusters] = g4hit_id;
       m_nRecoClusters++;
 
       if(m_nRecoClusters >= trackrecoclustermaxlength){
@@ -479,10 +529,14 @@ for(auto truth:all_truth_particles){
   alltruthclusters.insert(truth_clusters.begin(), truth_clusters.end());
 }
 
+
 for(auto truth:alltruthclusters){
   const auto &key = truth.first;
   const auto &cluster = truth.second;
-
+  if(!cluster){
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) cluster is nullptr" << std::endl;
+    continue;
+  }
   float x = cluster->getPosition(0);
   float y = cluster->getPosition(1);
   float z = cluster->getPosition(2);
@@ -505,13 +559,15 @@ for(auto truth:alltruthclusters){
   std::set<PHG4Hit*> g4hits = trutheval->get_truth_hits_from_truth_cluster(key);
   //for truth clusters all hits are belong to the same particle
   //check if g4hits is empty
-  if(g4hits.empty()){
-    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) g4hits for a truth cluster is empty something is very wrong" << std::endl;
-    exit(1);
+  int truth_particle_trackid = 0;
+  if(!g4hits.empty()){
+    PHG4Particle *truth_particle = trutheval->get_particle(*g4hits.begin());
+    truth_particle_trackid = truth_particle->get_track_id();
+  }
+  else{
+    continue;
   }
 
-  PHG4Particle *truth_particle = trutheval->get_particle(*g4hits.begin());
-  int truth_particle_trackid = truth_particle->get_track_id();
   //std::cout<<"truth_particle_trackid: "<<truth_particle_trackid<<std::endl;
   
   //cluster shift up by 1
@@ -532,6 +588,34 @@ for(auto truth:alltruthclusters){
     exit(1);
   }
 }
+std::set<PHG4Hit*> alltruthhits = trutheval->all_truth_hits();
+
+all_track_g4hits.insert(alltruthhits.begin(), alltruthhits.end());
+
+//loop over all G4Hits associated with track clusters
+for(auto g4hit:all_track_g4hits){
+  float x = g4hit->get_avg_x();
+  float y = g4hit->get_avg_y();
+  float z = g4hit->get_avg_z();
+  float e = g4hit->get_edep();
+  float t = g4hit->get_avg_t();
+  PHG4Particle *truth_particle = trutheval->get_particle(g4hit);
+  all_truth_particles.insert(truth_particle);
+  int trparticle_track_id = truth_particle->get_track_id();
+  m_track_g4hit_x[m_nTrackG4Hits] = x;
+  m_track_g4hit_y[m_nTrackG4Hits] = y;
+  m_track_g4hit_z[m_nTrackG4Hits] = z;
+  m_track_g4hit_t[m_nTrackG4Hits] = t;
+  m_track_g4hit_E[m_nTrackG4Hits] = e;
+  m_track_g4hit_trparticle_track_id[m_nTrackG4Hits] = trparticle_track_id;
+  m_track_g4hit_id[m_nTrackG4Hits] = g4hit->get_hit_id();
+  m_nTrackG4Hits++;
+
+  if(m_nTrackG4Hits >= truthtrackg4hitmaxlength){
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nTrackG4Hits exceeds max length" << std::endl;
+    exit(1);
+  }
+}
 
 
 
@@ -540,6 +624,15 @@ for(auto truth:alltruthclusters){
 all_truth_particles.insert(primary_particles.begin(), primary_particles.end());
 for(auto truth:all_truth_particles){
   int vtxid = truth->get_vtx_id();
+  int is_pythia_primary = trutheval->is_primary(truth);
+  int is_embedded = trutheval->get_embed(truth);
+  int pid = truth->get_pid();
+  TParticlePDG *partinfo = _pdg->GetParticle(pid);
+  float charge = std::nan("");
+  if (partinfo)
+  {
+    charge = partinfo->Charge() / 3; // PDG gives charge in 1/3 e
+  }
   PHG4VtxPoint *vtx = truthinfo->GetVtx(vtxid);
   m_particle_pid[m_nParticles] = truth->get_pid();
   m_particle_energy[m_nParticles] = truth->get_e();
@@ -551,6 +644,10 @@ for(auto truth:all_truth_particles){
   m_particle_vtx_z[m_nParticles] = vtx->get_z();
   m_particle_track_id[m_nParticles] = truth->get_track_id();
   m_particle_primary_id[m_nParticles] = truth->get_primary_id();
+  m_particle_parent_id[m_nParticles] = truth->get_parent_id();
+  m_particle_is_pythia_primary[m_nParticles] = is_pythia_primary;
+  m_particle_is_embedded[m_nParticles] = is_embedded;
+  m_particle_charge[m_nParticles] = (int)charge;
   m_nParticles++;
 
   if(m_nParticles >= ptruthmaxlength){
@@ -570,6 +667,7 @@ int calotrkana::ResetEvent(PHCompositeNode *topNode) {
   m_nParticles = 0;
   m_nRecoClusters = 0;
   m_nTruthClusters = 0;
+  m_nTrackG4Hits = 0;
 
   return Fun4AllReturnCodes::EVENT_OK;
 }
