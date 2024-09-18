@@ -9,12 +9,20 @@ from torch_geometric.data import Data
 
 
 class TPCDataset(Dataset):
+    """
+    Load reconstructed clusters from TPC with 4 features: energy, x, y, z.
+    Match each reco. cluster to a particle via the g4hit id.
+    The segmentation target for each reco. cluster is the track id of the
+    particle that leaves the trajectory. The regression target is the
+    initial momentum of the particle (vx, vy, vz), vertex of the particle
+    (vtx_x, vtx_y, vtx_z), and the energy of the particle.
+    """
     def __init__(self, data_root):
         data_root = Path(data_root)
 
         # load meta
-        with open(data_root/'meta.yaml', 'r') as fh:
-            self.meta = yaml.safe_load(fh)
+        with open(data_root/'meta.yaml', 'r', encoding='UTF-8') as file_handle:
+            self.meta = yaml.safe_load(file_handle)
 
         # load data
         self.data = uproot.open(data_root/'data.root')["T;1"]
@@ -63,11 +71,18 @@ class TPCDataset(Dataset):
         seg_target = torch.tensor(tpc_reco_cluster_with_particle[self.particle_seg_col].values)
         reg_target = torch.tensor(tpc_reco_cluster_with_particle[self.particle_reg_cols].values)
 
+        # NOTE: you may return the features and targets directly
+        # without using the Data function from torch_geometric.
+        # This function is just to make running GNN easier.
         return {'features': Data(x=features),
                 'seg_target': Data(x=seg_target),
                 'reg_target': Data(x=reg_target)}
 
     def load_branch(self, branch, event_id):
+        """
+        Load a branch (calorimeter hits, tracking reco. cluster, etc) of
+        a root file for an event with given event id.
+        """
 
         # construct the key name for the count
         count_key = 'n' + ''.join(branch.replace('_', ' ').title().split()) + 's'
@@ -95,6 +110,6 @@ class TPCDataset(Dataset):
         assert len(dataframe) == num_records, \
             f"unmatched number of records ({num_records} != {len(dataframe)}) "
 
-        print(f'Loaded {num_records} from branch {branch} of event {event_id}.')
+        # print(f'Loaded {num_records} from branch {branch} of event {event_id}.')
 
         return dataframe
