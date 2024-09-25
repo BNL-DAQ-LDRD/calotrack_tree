@@ -195,6 +195,30 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
     PHG4Particle *truth = truth_itr->second;
     primary_particles.insert(truth);
   }
+  //loop over secondary particles
+  PHG4TruthInfoContainer::ConstRange range_sec =
+      truthinfo->GetSecondaryParticleRange();
+  // set of secondary particles
+  std::set<PHG4Particle*> secondary_particles;
+  float max_r = 93;
+  float max_z = 150;
+  for (PHG4TruthInfoContainer::ConstIterator truth_itr = range_sec.first;
+       truth_itr != range_sec.second; ++truth_itr) {
+    PHG4Particle *truth = truth_itr->second;
+    int vtxid = truth->get_vtx_id();
+    PHG4VtxPoint *vtx = truthinfo->GetVtx(vtxid);
+    float vtx_x = vtx->get_x();
+    float vtx_y = vtx->get_y();
+    float vtx_z = vtx->get_z();
+    float vtx_r = sqrt(vtx_x*vtx_x + vtx_y*vtx_y);
+    if(vtx_r > max_r){
+      continue;
+    }
+    if(abs(vtx_z) > max_z){
+      continue;
+    }
+    secondary_particles.insert(truth);
+  }
 
   // CEMC
   TowerInfoContainer *CEMC_towers_sim =
@@ -616,14 +640,33 @@ for(auto g4hit:all_track_g4hits){
     exit(1);
   }
 }
+//extra step to get all secondaries parent history upstream to the saved particles
+std::set<PHG4Particle*> completed_particle_tree;
+all_truth_particles.insert(secondary_particles.begin(), secondary_particles.end());
+for(auto truth:all_truth_particles){
+  int parent_id = truth->get_parent_id();
+  PHG4Particle *parent = truthinfo->GetParticle(parent_id);
+  while(parent){
+    //if parent is already in the set, no need to go further
+    if(completed_particle_tree.find(parent) != completed_particle_tree.end()){
+      break;
+    }
+    completed_particle_tree.insert(parent);
+    parent_id = parent->get_parent_id();
+    parent = truthinfo->GetParticle(parent_id);
+  }
+}
 
 
 
 
 //get (secondary) truth particles associated with clusters
+all_truth_particles.insert(completed_particle_tree.begin(), completed_particle_tree.end());
 all_truth_particles.insert(primary_particles.begin(), primary_particles.end());
+
+
 for(auto truth:all_truth_particles){
-  int vtxid = truth->get_vtx_id();
+  
   int is_pythia_primary = trutheval->is_primary(truth);
   int is_embedded = trutheval->get_embed(truth);
   int pid = truth->get_pid();
@@ -633,6 +676,7 @@ for(auto truth:all_truth_particles){
   {
     charge = partinfo->Charge() / 3; // PDG gives charge in 1/3 e
   }
+  int vtxid = truth->get_vtx_id();
   PHG4VtxPoint *vtx = truthinfo->GetVtx(vtxid);
   m_particle_pid[m_nParticles] = truth->get_pid();
   m_particle_energy[m_nParticles] = truth->get_e();
