@@ -52,12 +52,23 @@ public:
 
   void Print(const std::string &what = "ALL") const override;
 
+  void set_HI(bool hi) { m_HI = hi; }
+
 
 private:
+  bool m_HI = true;
   TTree *T = nullptr;
   const float sampletons = 50./3.;
+  //HEPMC
+  float m_b{0};
+  float m_b_phi{0};
+  int m_Ncoll{0};
+  int m_Ncoll_hard{0};
+  int m_Npart_proj{0};
+  int m_Npart_targ{0};
+  float m_cent{0};
   // all reco stuff
-  static const int recomaxlength = 1E7;
+  static const int recomaxlength = 1E6;
   
   float m_Hit_E[recomaxlength] = {0};
   float m_Hit_x[recomaxlength] = {0};
