@@ -179,8 +179,8 @@ void Fun4All_run_dst(
     converter->Verbosity(verbosity);
     se->registerSubsystem(converter);
   }
-
-  ACTSGEOM::ActsGeomInit();
+  //this is in TrackingInit();
+  //ACTSGEOM::ActsGeomInit();
 
   // Centrality();
 
