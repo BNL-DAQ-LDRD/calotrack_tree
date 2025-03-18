@@ -52,10 +52,21 @@ public:
 
   void Print(const std::string &what = "ALL") const override;
 
+  void set_HI(bool hi) { m_HI = hi; }
+
 
 private:
+  bool m_HI = true;
   TTree *T = nullptr;
   const float sampletons = 50./3.;
+  //HEPMC
+  float m_b{0};
+  float m_b_phi{0};
+  int m_Ncoll{0};
+  int m_Ncoll_hard{0};
+  int m_Npart_proj{0};
+  int m_Npart_targ{0};
+  float m_cent{0};
   // all reco stuff
   static const int recomaxlength = 1E6;
   
@@ -67,7 +78,7 @@ private:
   int m_Hit_detid[recomaxlength] = {0};
   int m_nHits = 0;
   //I'm seperating the traking clusters from the rest
-  static const int trackrecoclustermaxlength = 1E5;
+  static const int trackrecoclustermaxlength = 1E7;
   float m_reco_cluster_E[trackrecoclustermaxlength] = {0};
   float m_reco_cluster_x[trackrecoclustermaxlength] = {0};
   float m_reco_cluster_y[trackrecoclustermaxlength] = {0};
@@ -81,7 +92,7 @@ private:
   ULong64_t m_reco_cluster_g4hit_id[trackrecoclustermaxlength] = {0};
   int m_nRecoClusters = 0;
   //truth cluster
-  static const int truthclustermaxlength = 1E5;
+  static const int truthclustermaxlength = 1E7;
   float m_truth_cluster_E[truthclustermaxlength] = {0};
   float m_truth_cluster_x[truthclustermaxlength] = {0};
   float m_truth_cluster_y[truthclustermaxlength] = {0};
@@ -94,7 +105,7 @@ private:
   int m_truth_cluster_trparticle_track_id[truthclustermaxlength] = {0};
   int m_nTruthClusters = 0;
 
-  static const int truthtrackg4hitmaxlength = 1E5;
+  static const int truthtrackg4hitmaxlength = 1E7;
   float m_track_g4hit_x[truthtrackg4hitmaxlength] = {0};
   float m_track_g4hit_y[truthtrackg4hitmaxlength] = {0};
   float m_track_g4hit_z[truthtrackg4hitmaxlength] = {0};
@@ -105,7 +116,7 @@ private:
   int m_nTrackG4Hits = 0;
 
   //sim stuff
-  static const int ptruthmaxlength = 1E5;
+  static const int ptruthmaxlength = 1E7;
   int m_particle_pid[ptruthmaxlength] = {0};
   float m_particle_energy[ptruthmaxlength] = {0};
   float m_particle_px[ptruthmaxlength] = {0};
