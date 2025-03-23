@@ -185,10 +185,18 @@ int calotrkana::Init(PHCompositeNode *topNode)
   T->Branch("track_g4hit_id", &m_track_g4hit_id, "track_g4hit_id[nTrackG4Hits]/l");
 
   // TPC seeds
+  /*
   T->Branch("tpc_seeds_id", &m_tpc_seeds_id);
   T->Branch("tpc_seeds_nclusters", &m_tpc_seeds_nclusters);
   T->Branch("tpc_seeds_start_idx", &m_tpc_seeds_start_idx);
   T->Branch("tpc_seeds_clusters", &m_tpc_seeds_clusters);
+  */
+  T->Branch("nTPCSeeds", &m_nTPCSeeds, "nTPCSeeds/I");
+  T->Branch("nTPCSeedsClusters", &m_nTPCSeedsClusters, "nTPCSeedsClusters/I");
+  T->Branch("tpc_seeds_id", &m_tpc_seeds_id, "tpc_seeds_id[nTPCSeeds]/i");
+  T->Branch("tpc_seeds_nclusters", &m_tpc_seeds_nclusters, "tpc_seeds_nclusters[nTPCSeeds]/i");
+  T->Branch("tpc_seeds_start_idx", &m_tpc_seeds_start_idx, "tpc_seeds_start_idx[nTPCSeeds]/i");
+  T->Branch("tpc_seeds_clusters", &m_tpc_seeds_clusters, "tpc_seeds_clusters[nTPCSeedsClusters]/l");
 
   _pdg = new TDatabasePDG();
   Fun4AllServer *se = Fun4AllServer::instance();
@@ -687,6 +695,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
   }
 
   // loop over all TPC seeds
+  /*
   m_tpc_seeds_id.clear();
   m_tpc_seeds_nclusters.clear();
   m_tpc_seeds_start_idx.clear();
@@ -721,6 +730,51 @@ int calotrkana::process_event(PHCompositeNode *topNode)
     m_tpc_seeds_start_idx.push_back(tpc_seed_start_idx);
     tpc_seed_start_idx += seed_ntpc_clusters;
     //m_tpc_seeds_clusters.push_back(cluster_keys);
+  }
+  */
+
+  // loop over all TPC seeds (use raw arrrays)
+  int tpc_seed_start_idx = 0;
+  SvtxTrackMap *trackmap = findNode::getClass<SvtxTrackMap>(topNode, "SvtxTrackMap");
+  for (const auto &[key, track] : *trackmap)
+  {
+    if (!track)
+    {
+      continue;
+    }
+    int seed_ntpc_clusters = 0;
+
+    for (const auto &ckey : get_cluster_keys(track))
+    {
+      if (TrkrDefs::getTrkrId(ckey) == TrkrDefs::tpcId)
+      {
+
+        m_tpc_seeds_clusters[m_nTPCSeedsClusters] = static_cast<ULong64_t>(ckey);
+        m_nTPCSeedsClusters++;
+        seed_ntpc_clusters++;
+        if (m_nTPCSeedsClusters >= tpcseedclustermaxlength)
+        {
+          std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nTPCSeedsClusters exceeds max length" << std::endl;
+          exit(1);
+        }
+      }
+    }
+    if (seed_ntpc_clusters == 0)
+    {
+      continue;
+    }
+
+    m_tpc_seeds_id[m_nTPCSeeds] = static_cast<unsigned int>(key);
+    m_tpc_seeds_nclusters[m_nTPCSeeds] = seed_ntpc_clusters;
+    m_tpc_seeds_start_idx[m_nTPCSeeds] = tpc_seed_start_idx;
+    m_nTPCSeeds++;
+    tpc_seed_start_idx += seed_ntpc_clusters;
+
+    if (m_nTPCSeeds >= tpcseedmaxlength)
+    {
+      std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nTPCSeeds exceeds max length" << std::endl;
+      exit(1);
+    }
   }
 
   // loop over all truth particles and find all associated truth clusters(just in case there are truth cluster that are not associated by any reco clusters)
@@ -902,6 +956,8 @@ int calotrkana::ResetEvent(PHCompositeNode *topNode)
   m_nRecoClusters = 0;
   m_nTruthClusters = 0;
   m_nTrackG4Hits = 0;
+  m_nTPCSeeds = 0;
+  m_nTPCSeedsClusters = 0;
 
   return Fun4AllReturnCodes::EVENT_OK;
 }

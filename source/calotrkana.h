@@ -127,11 +127,22 @@ private:
   int m_nTrackG4Hits = 0;
 
   //TPC seeds
+  /*
   std::vector<unsigned int> m_tpc_seeds_id;
   std::vector<unsigned int> m_tpc_seeds_nclusters;
   // it is a headache to store a vector of vectors in a TTree, so I made a start index and a length
   std::vector<unsigned int> m_tpc_seeds_start_idx;
   std::vector<ULong64_t> m_tpc_seeds_clusters;
+  */
+  static const int tpcseedmaxlength = 5E5;
+  static const int tpcseedclustermaxlength = 5E6;
+  int m_nTPCSeeds = 0;
+  int m_nTPCSeedsClusters = 0;
+  unsigned int m_tpc_seeds_id[tpcseedmaxlength] = {0};
+  unsigned int m_tpc_seeds_nclusters[tpcseedmaxlength] = {0};
+  unsigned int m_tpc_seeds_start_idx[tpcseedmaxlength] = {0};
+  ULong64_t m_tpc_seeds_clusters[tpcseedclustermaxlength] = {0};
+
 
   // sim stuff
   static const int ptruthmaxlength = 1E7;
