@@ -7,12 +7,14 @@
 
 // Fun4all stuff
 #include <ffaobjects/EventHeader.h>
+#include <ffaobjects/RunHeader.h>
 #include <fun4all/Fun4AllHistoManager.h>
 #include <fun4all/Fun4AllReturnCodes.h>
 #include <fun4all/Fun4AllServer.h>
 #include <phool/PHCompositeNode.h>
 #include <phool/getClass.h>
 #include <phool/phool.h>
+#include <phool/recoConsts.h>
 
 #include <phool/PHCompositeNode.h>
 
