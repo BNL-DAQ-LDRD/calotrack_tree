@@ -19,8 +19,9 @@
 
 #include <string>
 
-namespace HepMC {
-class GenEvent;
+namespace HepMC
+{
+  class GenEvent;
 }
 
 class PHCompositeNode;
@@ -31,7 +32,8 @@ class PHG4CylinderGeom_Spacalv3;
 class SvtxEvalStack;
 class TDatabasePDG;
 
-class calotrkana : public SubsysReco {
+class calotrkana : public SubsysReco
+{
 public:
   calotrkana(const std::string &name, const std::string &outName);
 
@@ -54,12 +56,11 @@ public:
 
   void set_HI(bool hi) { m_HI = hi; }
 
-
 private:
   bool m_HI = true;
   TTree *T = nullptr;
-  const float sampletons = 50./3.;
-  //HEPMC
+  const float sampletons = 50. / 3.;
+  // HEPMC
   float m_b{0};
   float m_b_phi{0};
   int m_Ncoll{0};
@@ -67,9 +68,14 @@ private:
   int m_Npart_proj{0};
   int m_Npart_targ{0};
   float m_cent{0};
+  // event meta data
+  int m_runnumber{0};
+  int m_evtnumber{0};
+  std::string m_filename{""};
+
   // all reco stuff
   static const int recomaxlength = 1E6;
-  
+
   float m_Hit_E[recomaxlength] = {0};
   float m_Hit_x[recomaxlength] = {0};
   float m_Hit_y[recomaxlength] = {0};
@@ -77,31 +83,33 @@ private:
   float m_Hit_t[recomaxlength] = {0};
   int m_Hit_detid[recomaxlength] = {0};
   int m_nHits = 0;
-  //I'm seperating the traking clusters from the rest
+  // I'm seperating the traking clusters from the rest
   static const int trackrecoclustermaxlength = 1E7;
   float m_reco_cluster_E[trackrecoclustermaxlength] = {0};
   float m_reco_cluster_x[trackrecoclustermaxlength] = {0};
   float m_reco_cluster_y[trackrecoclustermaxlength] = {0};
   float m_reco_cluster_z[trackrecoclustermaxlength] = {0};
-  //only INTT has a crossing id and MVTX has a strobe id(but for no pileup it's probably always 0)
+  // only INTT has a crossing id and MVTX has a strobe id(but for no pileup it's probably always 0)
   float m_reco_cluster_t[trackrecoclustermaxlength] = {0};
   int m_reco_cluster_detid[trackrecoclustermaxlength] = {0};
-  //best matching truth cluster
+  // reco cluster unique id for backporting 
+  ULong64_t m_reco_cluster_id[trackrecoclustermaxlength] = {0};
+  // best matching truth cluster
   unsigned int m_reco_cluster_trcluster_id[trackrecoclustermaxlength] = {0};
-  //best matching G4Hit
+  // best matching G4Hit
   ULong64_t m_reco_cluster_g4hit_id[trackrecoclustermaxlength] = {0};
   int m_nRecoClusters = 0;
-  //truth cluster
+  // truth cluster
   static const int truthclustermaxlength = 1E7;
   float m_truth_cluster_E[truthclustermaxlength] = {0};
   float m_truth_cluster_x[truthclustermaxlength] = {0};
   float m_truth_cluster_y[truthclustermaxlength] = {0};
   float m_truth_cluster_z[truthclustermaxlength] = {0};
-  //looking at the code that generate the truth cluster, it seems that the time is always 0???
+  // looking at the code that generate the truth cluster, it seems that the time is always 0???
   float m_truth_cluster_t[truthclustermaxlength] = {0};
   int m_truth_cluster_detid[truthclustermaxlength] = {0};
   unsigned int m_truth_cluster_id[truthclustermaxlength] = {0};
-  //the track id for the truth particle that generated the truth cluster
+  // the track id for the truth particle that generated the truth cluster
   int m_truth_cluster_trparticle_track_id[truthclustermaxlength] = {0};
   int m_nTruthClusters = 0;
 
@@ -115,7 +123,7 @@ private:
   ULong64_t m_track_g4hit_id[truthtrackg4hitmaxlength] = {0};
   int m_nTrackG4Hits = 0;
 
-  //sim stuff
+  // sim stuff
   static const int ptruthmaxlength = 1E7;
   int m_particle_pid[ptruthmaxlength] = {0};
   float m_particle_energy[ptruthmaxlength] = {0};
@@ -133,7 +141,8 @@ private:
   int m_particle_charge[ptruthmaxlength] = {0};
   int m_nParticles = 0;
 
-   enum detid{
+  enum detid
+  {
     mvtxId = 0,
     inttId = 1,
     tpcId = 2,
@@ -146,19 +155,16 @@ private:
   };
 
   std::vector<std::pair<detid, TrkrDefs::TrkrId>> trkrlist = {
-        {mvtxId, TrkrDefs::mvtxId},
-        {inttId, TrkrDefs::inttId},
-        {tpcId, TrkrDefs::tpcId},
-        {tpotId, TrkrDefs::micromegasId}
-    };
+      {mvtxId, TrkrDefs::mvtxId},
+      {inttId, TrkrDefs::inttId},
+      {tpcId, TrkrDefs::tpcId},
+      {tpotId, TrkrDefs::micromegasId}};
 
   SvtxEvalStack *m_svtxEvalStack = nullptr;
- 
- 
+
   TDatabasePDG *_pdg = nullptr;
   std::string Outfile;
   TFile *out;
-
 };
 
 #endif // calotrkana_H
