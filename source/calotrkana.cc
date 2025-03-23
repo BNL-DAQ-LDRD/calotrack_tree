@@ -120,6 +120,11 @@ int calotrkana::Init(PHCompositeNode *topNode) {
   T->Branch("Npart_targ", &m_Npart_targ, "Npart_targ/I");
   //centrality
   T->Branch("centile", &m_cent, "centile/F");
+  //event meta data
+  T->Branch("runnumber", &m_runnumber, "runnumber/I");
+  T->Branch("evtnumber", &m_evtnumber, "evtnumber/I");
+  //string for filename
+  T->Branch("filename", &m_filename, "filename/std::string");
 
   T->Branch("nHits", &m_nHits, "nHits/I");
   T->Branch("Hit_E", &m_Hit_E, "Hit_E[nHits]/F");
@@ -185,6 +190,19 @@ int calotrkana::InitRun(PHCompositeNode *topNode) {
   std::cout
       << "calotrkana::InitRun(PHCompositeNode *topNode) Initializing for Run XXX"
       << std::endl;
+
+  //get runnumber here
+  RunHeader *runheader = findNode::getClass<RunHeader>(topNode, "RunHeader");
+  if (!runheader)
+  {
+    std::cout << "can't find runheader" << std::endl;
+    return 1;
+  }
+  m_runnumber = runheader->get_RunNumber();
+  //get the filename flag via rc
+  //!!!!!!!!!!!!!! this only works if we read in one segment at a time...I don't think there is a simple way to get the segment name in F4A...
+  recoConsts *rc = recoConsts::instance();
+  m_filename = rc->get_StringFlag("Sim_File_Name");
   return Fun4AllReturnCodes::EVENT_OK;
 }
 

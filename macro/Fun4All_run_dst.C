@@ -72,6 +72,11 @@ void Fun4All_run_dst(
   Enable::CDB = true;
   rc->set_StringFlag("CDB_GLOBALTAG", cdbtag);
   rc->set_uint64Flag("TIMESTAMP", 19);
+  //get the first line of inputFile0
+  ifstream infile(inputFile0);
+  string line;
+  getline(infile, line);
+  rc->set_StringFlag("Sim_File_Name", line);
   CDBInterface::instance()->Verbosity(1);
 
   FlagHandler *flag = new FlagHandler();

@@ -67,6 +67,11 @@ private:
   int m_Npart_proj{0};
   int m_Npart_targ{0};
   float m_cent{0};
+  // event meta data
+  int m_runnumber{0};
+  int m_evtnumber{0};
+  std::string m_filename{""};
+
   // all reco stuff
   static const int recomaxlength = 1E6;
   
