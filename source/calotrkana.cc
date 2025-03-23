@@ -89,6 +89,9 @@
 #include <trackbase/MvtxDefs.h>
 #include <trackbase/InttDefs.h>
 
+#include <trackbase_historic/SvtxTrack.h>
+#include <trackbase_historic/SvtxTrackMap.h>
+
 #include <g4eval/SvtxEvalStack.h>
 
 //____________________________________________________________________________..
@@ -180,6 +183,12 @@ int calotrkana::Init(PHCompositeNode *topNode)
   T->Branch("track_g4hit_E", &m_track_g4hit_E, "track_g4hit_E[nTrackG4Hits]/F");
   T->Branch("track_g4hit_trparticle_track_id", &m_track_g4hit_trparticle_track_id, "track_g4hit_trparticle_track_id[nTrackG4Hits]/I");
   T->Branch("track_g4hit_id", &m_track_g4hit_id, "track_g4hit_id[nTrackG4Hits]/l");
+
+  // TPC seeds
+  T->Branch("tpc_seeds_id", &m_tpc_seeds_id);
+  T->Branch("tpc_seeds_nclusters", &m_tpc_seeds_nclusters);
+  T->Branch("tpc_seeds_start_idx", &m_tpc_seeds_start_idx);
+  T->Branch("tpc_seeds_clusters", &m_tpc_seeds_clusters);
 
   _pdg = new TDatabasePDG();
   Fun4AllServer *se = Fun4AllServer::instance();
@@ -662,7 +671,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         m_reco_cluster_z[m_nRecoClusters] = z;
         m_reco_cluster_t[m_nRecoClusters] = t;
         m_reco_cluster_detid[m_nRecoClusters] = static_cast<int>(TrkrDefs::getTrkrId(key));
-        //key here is uint64_t (https://github.com/sPHENIX-Collaboration/coresoftware/blob/master/offline/packages/trackbase/TrkrDefs.h#L27)
+        // key here is uint64_t (https://github.com/sPHENIX-Collaboration/coresoftware/blob/master/offline/packages/trackbase/TrkrDefs.h#L27)
         m_reco_cluster_id[m_nRecoClusters] = static_cast<ULong64_t>(key);
         m_reco_cluster_trcluster_id[m_nRecoClusters] = clusterid;
         m_reco_cluster_g4hit_id[m_nRecoClusters] = g4hit_id;
@@ -676,6 +685,44 @@ int calotrkana::process_event(PHCompositeNode *topNode)
       }
     }
   }
+
+  // loop over all TPC seeds
+  m_tpc_seeds_id.clear();
+  m_tpc_seeds_nclusters.clear();
+  m_tpc_seeds_start_idx.clear();
+  m_tpc_seeds_clusters.clear();
+  int tpc_seed_start_idx = 0;
+  SvtxTrackMap *trackmap = findNode::getClass<SvtxTrackMap>(topNode, "SvtxTrackMap");
+  for (const auto &[key, track] : *trackmap)
+  {
+    if (!track)
+    {
+      continue;
+    }
+    std::vector<ULong64_t> cluster_keys;
+    int seed_ntpc_clusters = 0;
+
+    for (const auto &ckey : get_cluster_keys(track))
+    {
+      if (TrkrDefs::getTrkrId(ckey) == TrkrDefs::tpcId)
+      {
+        cluster_keys.push_back(static_cast<ULong64_t>(ckey));
+        m_tpc_seeds_clusters.push_back(static_cast<ULong64_t>(ckey));
+        seed_ntpc_clusters++;
+      }
+    }
+    if (seed_ntpc_clusters == 0)
+    {
+      continue;
+    }
+
+    m_tpc_seeds_id.push_back(static_cast<unsigned int>(key));
+    m_tpc_seeds_nclusters.push_back(seed_ntpc_clusters);
+    m_tpc_seeds_start_idx.push_back(tpc_seed_start_idx);
+    tpc_seed_start_idx += seed_ntpc_clusters;
+    //m_tpc_seeds_clusters.push_back(cluster_keys);
+  }
+
   // loop over all truth particles and find all associated truth clusters(just in case there are truth cluster that are not associated by any reco clusters)
   // maybe unnecessary...just to be safe :)
   for (auto truth : all_truth_particles)
@@ -885,4 +932,17 @@ void calotrkana::Print(const std::string &what) const
 {
   std::cout << "calotrkana::Print(const std::string &what) const Printing info for "
             << what << std::endl;
+}
+
+std::vector<TrkrDefs::cluskey> calotrkana::get_cluster_keys(SvtxTrack *track)
+{
+  std::vector<TrkrDefs::cluskey> out;
+  for (const auto &seed : {track->get_silicon_seed(), track->get_tpc_seed()})
+  {
+    if (seed)
+    {
+      std::copy(seed->begin_cluster_keys(), seed->end_cluster_keys(), std::back_inserter(out));
+    }
+  }
+  return out;
 }

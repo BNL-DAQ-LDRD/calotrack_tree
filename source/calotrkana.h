@@ -12,6 +12,7 @@
 #include <TH3F.h>
 #include <TLorentzVector.h>
 #include <TTree.h>
+#include <ROOT/RVec.hxx>
 #include <calobase/TowerInfoDefs.h>
 #include <caloreco/CaloTowerDefs.h>
 
@@ -31,6 +32,7 @@ class PHG4CylinderCellGeom_Spacalv1;
 class PHG4CylinderGeom_Spacalv3;
 class SvtxEvalStack;
 class TDatabasePDG;
+class SvtxTrack;
 
 class calotrkana : public SubsysReco
 {
@@ -57,6 +59,7 @@ public:
   void set_HI(bool hi) { m_HI = hi; }
 
 private:
+  std::vector<TrkrDefs::cluskey> get_cluster_keys(SvtxTrack* track);
   bool m_HI = true;
   TTree *T = nullptr;
   const float sampletons = 50. / 3.;
@@ -122,6 +125,13 @@ private:
   int m_track_g4hit_trparticle_track_id[truthtrackg4hitmaxlength] = {0};
   ULong64_t m_track_g4hit_id[truthtrackg4hitmaxlength] = {0};
   int m_nTrackG4Hits = 0;
+
+  //TPC seeds
+  std::vector<unsigned int> m_tpc_seeds_id;
+  std::vector<unsigned int> m_tpc_seeds_nclusters;
+  // it is a headache to store a vector of vectors in a TTree, so I made a start index and a length
+  std::vector<unsigned int> m_tpc_seeds_start_idx;
+  std::vector<ULong64_t> m_tpc_seeds_clusters;
 
   // sim stuff
   static const int ptruthmaxlength = 1E7;
