@@ -129,7 +129,7 @@ int calotrkana::Init(PHCompositeNode *topNode)
   T->Branch("runnumber", &m_runnumber, "runnumber/I");
   T->Branch("evtnumber", &m_evtnumber, "evtnumber/I");
   // string for filename
-  T->Branch("filename", &m_filename, "filename/std::string");
+  T->Branch("filename", &m_filename);
 
   T->Branch("nHits", &m_nHits, "nHits/I");
   T->Branch("Hit_E", &m_Hit_E, "Hit_E[nHits]/F");
@@ -160,6 +160,7 @@ int calotrkana::Init(PHCompositeNode *topNode)
   T->Branch("reco_cluster_z", &m_reco_cluster_z, "reco_cluster_z[nRecoClusters]/F");
   T->Branch("reco_cluster_t", &m_reco_cluster_t, "reco_cluster_t[nRecoClusters]/F");
   T->Branch("reco_cluster_detid", &m_reco_cluster_detid, "reco_cluster_detid[nRecoClusters]/I");
+  T->Branch("reco_cluster_id", &m_reco_cluster_id, "reco_cluster_id[nRecoClusters]/l");
   T->Branch("reco_cluster_trcluster_id", &m_reco_cluster_trcluster_id, "reco_cluster_trcluster_id[nRecoClusters]/i");
   T->Branch("reco_cluster_g4hit_id", &m_reco_cluster_g4hit_id, "reco_cluster_g4hit_id[nRecoClusters]/l");
   T->Branch("nTruthClusters", &m_nTruthClusters, "nTruthClusters/I");
@@ -661,6 +662,8 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         m_reco_cluster_z[m_nRecoClusters] = z;
         m_reco_cluster_t[m_nRecoClusters] = t;
         m_reco_cluster_detid[m_nRecoClusters] = static_cast<int>(TrkrDefs::getTrkrId(key));
+        //key here is uint64_t (https://github.com/sPHENIX-Collaboration/coresoftware/blob/master/offline/packages/trackbase/TrkrDefs.h#L27)
+        m_reco_cluster_id[m_nRecoClusters] = static_cast<ULong64_t>(key);
         m_reco_cluster_trcluster_id[m_nRecoClusters] = clusterid;
         m_reco_cluster_g4hit_id[m_nRecoClusters] = g4hit_id;
         m_nRecoClusters++;

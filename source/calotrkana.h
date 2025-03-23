@@ -92,6 +92,8 @@ private:
   // only INTT has a crossing id and MVTX has a strobe id(but for no pileup it's probably always 0)
   float m_reco_cluster_t[trackrecoclustermaxlength] = {0};
   int m_reco_cluster_detid[trackrecoclustermaxlength] = {0};
+  // reco cluster unique id for backporting 
+  ULong64_t m_reco_cluster_id[trackrecoclustermaxlength] = {0};
   // best matching truth cluster
   unsigned int m_reco_cluster_trcluster_id[trackrecoclustermaxlength] = {0};
   // best matching G4Hit
