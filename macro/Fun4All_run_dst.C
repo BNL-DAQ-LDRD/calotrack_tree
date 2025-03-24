@@ -49,7 +49,7 @@ R__LOAD_LIBRARY(libTrackingDiagnostics.so)
 R__LOAD_LIBRARY(libtrack_reco.so)
 
 void Fun4All_run_dst(
-    const int nEvents = 10,
+    const int nEvents = 1,
     const string &inputFile0 = "g4hits.list",
     // const string &inputFile1 = "dst_global.list",
     const string &inputFile1 = "dst_calo_waveform.list",
@@ -72,6 +72,11 @@ void Fun4All_run_dst(
   Enable::CDB = true;
   rc->set_StringFlag("CDB_GLOBALTAG", cdbtag);
   rc->set_uint64Flag("TIMESTAMP", 19);
+  //get the first line of inputFile0
+  ifstream infile(inputFile0);
+  string line;
+  getline(infile, line);
+  rc->set_StringFlag("Sim_File_Name", line);
   CDBInterface::instance()->Verbosity(1);
 
   FlagHandler *flag = new FlagHandler();
@@ -186,6 +191,7 @@ void Fun4All_run_dst(
 
   calotrkana *caloana24 = new calotrkana("calotrkana", "testout.root");
   se->registerSubsystem(caloana24);
+  se->skip(1);
 
   se->run(nEvents);
   CDBInterface::instance()->Print(); // print used DB files
