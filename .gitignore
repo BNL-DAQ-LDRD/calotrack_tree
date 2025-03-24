@@ -1,0 +1,17 @@
+build
+.vscode
+*.root
+*.cache
+*.m4
+*.guess
+missing
+configure
+depcomp
+install-sh
+ltmain.sh
+*.sub
+*.in
+*.swp
+*.list
+*log
+.ipynb_checkpoints
