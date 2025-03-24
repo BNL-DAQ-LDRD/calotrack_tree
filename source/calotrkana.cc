@@ -270,6 +270,14 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         m_Ncoll_hard = hi->Ncoll_hard();
         m_Npart_proj = hi->Npart_proj();
         m_Npart_targ = hi->Npart_targ();
+        std::cout<<"npart_proj: "<<m_Npart_proj<<" npart_targ: "<<m_Npart_targ<<std::endl;
+        int Npart_total = m_Npart_proj + m_Npart_targ;
+        if(Npart_total> m_Npart_max || Npart_total < m_Npart_min)
+        {
+          std::cout<<"Npart_total: "<<Npart_total<<" is out of range: "<<m_Npart_min<<" - "<<m_Npart_max<<std::endl;
+          std::cout<<"Skipping event"<<std::endl;
+          return Fun4AllReturnCodes::EVENT_OK;
+        }
       }
     }
     // centrality and vertex maybe
@@ -571,6 +579,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
   std::set<PHG4Particle *> all_truth_particles;
   std::set<PHG4Hit *> all_track_g4hits;
   std::map<TrkrDefs::cluskey, std::shared_ptr<TrkrCluster>> alltruthclusters;
+  std::cout << "calotrkana::process_event(PHCompositeNode *topNode) clustermap size: " << clustermap->size() << std::endl;
   for (auto trkid : trkrlist)
   {
 
@@ -778,7 +787,6 @@ int calotrkana::process_event(PHCompositeNode *topNode)
       exit(1);
     }
   }
-
   // loop over all truth particles and find all associated truth clusters(just in case there are truth cluster that are not associated by any reco clusters)
   // maybe unnecessary...just to be safe :)
   for (auto truth : all_truth_particles)

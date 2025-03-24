@@ -190,6 +190,7 @@ void Fun4All_run_dst(
   // Centrality();
 
   calotrkana *caloana24 = new calotrkana("calotrkana", "testout.root");
+  caloana24->set_npart_range(0, 32);
   se->registerSubsystem(caloana24);
   se->skip(1);
 

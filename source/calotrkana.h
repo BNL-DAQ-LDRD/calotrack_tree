@@ -58,6 +58,12 @@ public:
 
   void set_HI(bool hi) { m_HI = hi; }
 
+  void set_npart_range(int min, int max)
+  {
+    m_Npart_min = min;
+    m_Npart_max = max;
+  }
+
 private:
   std::vector<TrkrDefs::cluskey> get_cluster_keys(SvtxTrack* track);
   bool m_HI = true;
@@ -71,6 +77,8 @@ private:
   int m_Npart_proj{0};
   int m_Npart_targ{0};
   float m_cent{0};
+  int m_Npart_max{396}; //197*2
+  int m_Npart_min{0};
   // event meta data
   int m_runnumber{0};
   int m_evtnumber{0};
@@ -87,7 +95,7 @@ private:
   int m_Hit_detid[recomaxlength] = {0};
   int m_nHits = 0;
   // I'm seperating the traking clusters from the rest
-  static const int trackrecoclustermaxlength = 1E7;
+  static const int trackrecoclustermaxlength = 5E6;
   float m_reco_cluster_E[trackrecoclustermaxlength] = {0};
   float m_reco_cluster_x[trackrecoclustermaxlength] = {0};
   float m_reco_cluster_y[trackrecoclustermaxlength] = {0};
@@ -104,7 +112,7 @@ private:
   ULong64_t m_reco_cluster_g4hit_trkid[trackrecoclustermaxlength] = {0};
   int m_nRecoClusters = 0;
   // truth cluster
-  static const int truthclustermaxlength = 1E7;
+  static const int truthclustermaxlength = 2E6;
   float m_truth_cluster_E[truthclustermaxlength] = {0};
   float m_truth_cluster_x[truthclustermaxlength] = {0};
   float m_truth_cluster_y[truthclustermaxlength] = {0};
@@ -117,7 +125,7 @@ private:
   int m_truth_cluster_trparticle_track_id[truthclustermaxlength] = {0};
   int m_nTruthClusters = 0;
 
-  static const int truthtrackg4hitmaxlength = 1E7;
+  static const int truthtrackg4hitmaxlength = 5E6;
   float m_track_g4hit_x[truthtrackg4hitmaxlength] = {0};
   float m_track_g4hit_y[truthtrackg4hitmaxlength] = {0};
   float m_track_g4hit_z[truthtrackg4hitmaxlength] = {0};
