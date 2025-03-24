@@ -49,7 +49,7 @@ R__LOAD_LIBRARY(libTrackingDiagnostics.so)
 R__LOAD_LIBRARY(libtrack_reco.so)
 
 void Fun4All_run_dst(
-    const int nEvents = 1,
+    const int nEvents = 10,
     const string &inputFile0 = "g4hits.list",
     // const string &inputFile1 = "dst_global.list",
     const string &inputFile1 = "dst_calo_waveform.list",

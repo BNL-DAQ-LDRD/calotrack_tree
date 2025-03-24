@@ -38,6 +38,7 @@
 #include <TLorentzVector.h>
 #include <TSystem.h>
 #include <TTree.h>
+#include <TObject.h>
 #include <phhepmc/PHHepMCGenEvent.h>
 #include <phhepmc/PHHepMCGenEventMap.h>
 
@@ -69,6 +70,8 @@
 #include <mbd/MbdOut.h>
 #include <mbd/MbdPmtContainer.h>
 #include <mbd/MbdPmtHit.h>
+
+#include <centrality/CentralityInfo.h>
 
 #include <epd/EpdGeom.h>
 
@@ -106,6 +109,18 @@ int calotrkana::Init(PHCompositeNode *topNode) {
             << std::endl;
   out = new TFile(Outfile.c_str(), "RECREATE");
   T = new TTree("T", "Tree for Reco Hits and truth");
+
+  //global branches
+  //HEPMC HI info
+  T->Branch("b", &m_b, "b/F");
+  T->Branch("b_phi", &m_b_phi, "b_phi/F");
+  T->Branch("Ncoll", &m_Ncoll, "Ncoll/I");
+  T->Branch("Ncoll_hard", &m_Ncoll_hard, "Ncoll_hard/I");
+  T->Branch("Npart_proj", &m_Npart_proj, "Npart_proj/I");
+  T->Branch("Npart_targ", &m_Npart_targ, "Npart_targ/I");
+  //centrality
+  T->Branch("centile", &m_cent, "centile/F");
+
   T->Branch("nHits", &m_nHits, "nHits/I");
   T->Branch("Hit_E", &m_Hit_E, "Hit_E[nHits]/F");
   T->Branch("Hit_x", &m_Hit_x, "Hit_x[nHits]/F");
@@ -176,6 +191,58 @@ int calotrkana::InitRun(PHCompositeNode *topNode) {
 
 //____________________________________________________________________________..
 int calotrkana::process_event(PHCompositeNode *topNode) {
+
+  if(m_HI)
+  {
+      //hepmc info
+   PHHepMCGenEventMap *genevtmap =
+      findNode::getClass<PHHepMCGenEventMap>(topNode, "PHHepMCGenEventMap");
+  if (!genevtmap) {
+    std::cout << "no genevtmap" << std::endl;
+    return Fun4AllReturnCodes::ABORTEVENT;
+  }
+  for (PHHepMCGenEventMap::Iter iter = genevtmap->begin();
+       iter != genevtmap->end(); ++iter) {
+    PHHepMCGenEvent *genevt = iter->second;
+    // check if embedded
+    if (genevt->get_embedding_id() != 0)
+      continue;
+    HepMC::GenEvent *event = genevt->getEvent();
+    if (!event) {
+      std::cout << PHWHERE << " no evt pointer under HEPMC Node found"
+                << std::endl;
+    } else {
+      HepMC::HeavyIon *hi = event->heavy_ion();
+      if (!hi) {
+        std::cout << PHWHERE
+                  << ": no heavy ion info found in hepmc event, skip this event"
+                  << std::endl;
+      }
+      m_b = hi->impact_parameter();
+      m_b_phi = hi->event_plane_angle();
+      m_Ncoll = hi->Ncoll();
+      m_Ncoll_hard = hi->Ncoll_hard();
+      m_Npart_proj = hi->Npart_proj();
+      m_Npart_targ = hi->Npart_targ();
+
+    }
+  }
+  //centrality and vertex maybe
+  CentralityInfo *centrality_info = findNode::getClass<CentralityInfo>(topNode, "Centrality");
+  if (!centrality_info) {
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No centrality info found"
+              << std::endl;
+  }
+  else{
+  //get cent
+   m_cent = (centrality_info->has_centile(CentralityInfo::PROP::mbd_NS)?centrality_info->get_centile(CentralityInfo::PROP::mbd_NS) : -999.99);
+  }
+
+  }
+
+
+
+
 
   // truth container here
   PHG4TruthInfoContainer *truthinfo =
@@ -488,6 +555,17 @@ int calotrkana::process_event(PHCompositeNode *topNode) {
       float x = global(0);
       float y = global(1);
       float z = global(2);
+      /*
+      int truthtrackid = (*truth_withcluster.begin())->get_track_id();
+      if(abs(z)>200 || truthtrackid == -1134){
+        std::cout<<"x: "<<x<<" y: "<<y<<" z: "<<z<<std::endl;
+        
+        std::cout<<"truthtrackid: "<<truthtrackid<<std::endl;
+        float localy = cluster->getLocalY();
+        std::cout<<"localy: "<<localy<<std::endl;
+      }
+      */
+	
 
       float e = cluster->getAdc();
       //float t = cluster->getTime();
@@ -723,7 +801,8 @@ int calotrkana::ResetEvent(PHCompositeNode *topNode) {
 int calotrkana::End(PHCompositeNode *topNode) {
   out->cd();
 
-  T->Write();
+  //T->Write();
+  T->Write("", TObject::kOverwrite);
 
   out->Close();
   delete out;
