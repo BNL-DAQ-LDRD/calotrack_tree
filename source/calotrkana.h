@@ -109,6 +109,7 @@ private:
   unsigned int m_reco_cluster_trcluster_id[trackrecoclustermaxlength] = {0};
   // best matching G4Hit
   ULong64_t m_reco_cluster_g4hit_id[trackrecoclustermaxlength] = {0};
+  int m_reco_cluster_g4hit_trkid[trackrecoclustermaxlength] = {0};
   int m_nRecoClusters = 0;
   // truth cluster
   static const int truthclustermaxlength = 2E6;

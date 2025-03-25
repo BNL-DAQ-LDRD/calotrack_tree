@@ -2,6 +2,17 @@
 
 This module creates a TTree containing the simulated detector response for all sPHENIX detectors (except for ZDC) and the primary truth particle information.
 
+## cheat sheet
+
+Install:
+ref: https://github.com/sPHENIX-Collaboration/tutorials/blob/master/CreateSubsysRecoModule/source/create_me.sh
+
+Run:
+```bash
+root -l -q Fun4All_run_dst.C >& log
+```
+
+
 ## Detector Response Branches
 
 The branches for the simulated detector responses for calorimeters and MBD detectors are as follows:
