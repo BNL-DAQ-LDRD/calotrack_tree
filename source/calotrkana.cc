@@ -166,7 +166,7 @@ int calotrkana::Init(PHCompositeNode *topNode)
   T->Branch("reco_cluster_id", &m_reco_cluster_id, "reco_cluster_id[nRecoClusters]/l");
   T->Branch("reco_cluster_trcluster_id", &m_reco_cluster_trcluster_id, "reco_cluster_trcluster_id[nRecoClusters]/i");
   T->Branch("reco_cluster_g4hit_id", &m_reco_cluster_g4hit_id, "reco_cluster_g4hit_id[nRecoClusters]/l");
-  T->Branch("reco_cluster_g4hit_trkid", &m_reco_cluster_g4hit_trkid, "reco_cluster_g4hit_trkid[nRecoClusters]/l");
+  T->Branch("reco_cluster_g4hit_trkid", &m_reco_cluster_g4hit_trkid, "reco_cluster_g4hit_trkid[nRecoClusters]/I");
   T->Branch("nTruthClusters", &m_nTruthClusters, "nTruthClusters/I");
   T->Branch("truth_cluster_E", &m_truth_cluster_E, "truth_cluster_E[nTruthClusters]/F");
   T->Branch("truth_cluster_x", &m_truth_cluster_x, "truth_cluster_x[nTruthClusters]/F");
