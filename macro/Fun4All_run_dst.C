@@ -30,7 +30,7 @@
 
 #include <centrality/CentralityReco.h>
 
-//tracking
+// tracking
 #include <trackreco/PHCASeeding.h>
 
 #include <trackingdiagnostics/TrackSeedTrackMapConverter.h>
@@ -49,7 +49,7 @@ R__LOAD_LIBRARY(libTrackingDiagnostics.so)
 R__LOAD_LIBRARY(libtrack_reco.so)
 
 void Fun4All_run_dst(
-    const int nEvents = 10,
+    const int nEvents = 0,
     const string &inputFile0 = "g4hits.list",
     // const string &inputFile1 = "dst_global.list",
     const string &inputFile1 = "dst_calo_waveform.list",
@@ -72,7 +72,7 @@ void Fun4All_run_dst(
   Enable::CDB = true;
   rc->set_StringFlag("CDB_GLOBALTAG", cdbtag);
   rc->set_uint64Flag("TIMESTAMP", 19);
-  //get the first line of inputFile0
+  // get the first line of inputFile0
   ifstream infile(inputFile0);
   string line;
   getline(infile, line);
@@ -169,7 +169,43 @@ void Fun4All_run_dst(
     seeder->SetMinClustersPerTrack(3);
     seeder->useFixedClusterError(true);
 
-    seeder->set_pp_mode(true);
+    if (G4TPC::TPC_GAS_MIXTURE == "NeCF4")
+    {
+      seeder->setNeonFraction(G4TPC::NeCF4_Ne_frac);
+      seeder->setArgonFraction(G4TPC::NeCF4_Ar_frac);
+      seeder->setCF4Fraction(G4TPC::NeCF4_CF4_frac);
+      seeder->setNitrogenFraction(G4TPC::NeCF4_N2_frac);
+      seeder->setIsobutaneFraction(G4TPC::NeCF4_isobutane_frac);
+    }
+    else if (G4TPC::TPC_GAS_MIXTURE == "ArCF4")
+    {
+      seeder->setNeonFraction(G4TPC::ArCF4_Ne_frac);
+      seeder->setArgonFraction(G4TPC::ArCF4_Ar_frac);
+      seeder->setCF4Fraction(G4TPC::ArCF4_CF4_frac);
+      seeder->setNitrogenFraction(G4TPC::ArCF4_N2_frac);
+      seeder->setIsobutaneFraction(G4TPC::ArCF4_isobutane_frac);
+    }
+    else if (G4TPC::TPC_GAS_MIXTURE == "ArCF4N2")
+    {
+      seeder->setNeonFraction(G4TPC::ArCF4N2_Ne_frac);
+      seeder->setArgonFraction(G4TPC::ArCF4N2_Ar_frac);
+      seeder->setCF4Fraction(G4TPC::ArCF4N2_CF4_frac);
+      seeder->setNitrogenFraction(G4TPC::ArCF4N2_N2_frac);
+      seeder->setIsobutaneFraction(G4TPC::ArCF4N2_isobutane_frac);
+    }
+    else if (G4TPC::TPC_GAS_MIXTURE == "ArCF4Isobutane")
+    {
+      seeder->setNeonFraction(G4TPC::ArCF4Isobutane_Ne_frac);
+      seeder->setArgonFraction(G4TPC::ArCF4Isobutane_Ar_frac);
+      seeder->setCF4Fraction(G4TPC::ArCF4Isobutane_CF4_frac);
+      seeder->setNitrogenFraction(G4TPC::ArCF4Isobutane_N2_frac);
+      seeder->setIsobutaneFraction(G4TPC::ArCF4Isobutane_isobutane_frac);
+    }
+    else
+    {
+    }
+
+    seeder->set_pp_mode(false);
     se->registerSubsystem(seeder);
   }
 
@@ -184,8 +220,8 @@ void Fun4All_run_dst(
     converter->Verbosity(verbosity);
     se->registerSubsystem(converter);
   }
-  //this is in TrackingInit();
-  //ACTSGEOM::ActsGeomInit();
+  // this is in TrackingInit();
+  // ACTSGEOM::ActsGeomInit();
 
   // Centrality();
 
