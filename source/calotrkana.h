@@ -63,10 +63,15 @@ public:
     m_Npart_min = min;
     m_Npart_max = max;
   }
+  void set_tracking_only(bool trackonly = true)
+{
+  m_tracking_only = trackonly;
+}
 
 private:
   std::vector<TrkrDefs::cluskey> get_cluster_keys(SvtxTrack* track);
   bool m_HI = true;
+  bool m_tracking_only = false;
   TTree *T = nullptr;
   const float sampletons = 50. / 3.;
   // HEPMC
