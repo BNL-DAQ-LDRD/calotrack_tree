@@ -112,37 +112,81 @@ def match_particles_to_seeds_optimized(particles, seeds, ncommon):
 # all_pt = particles['pt'].tolist()
 # matched_pt = match_particles_to_seeds_optimized(particles, seeds, ncommon)
 
-def plot_eff(all_pt, matched_pt):
-    # 1) Plot histograms of all_pt and matched_pt
-    bin_edges = np.linspace(0, 2, 21)  # Define bin edges
-    print(f"bin_edges: {bin_edges}")
-    plt.hist(all_pt, bins=bin_edges, alpha=0.5, label='All')
-    plt.hist(matched_pt, bins=bin_edges, alpha=0.5, label='Matched')
-    plt.xlabel('pt')
+# def plot_eff(all_pt, matched_pt):
+#     # 1) Plot histograms of all_pt and matched_pt
+#     bin_edges = np.linspace(0, 2, 21)  # Define bin edges
+#     print(f"bin_edges: {bin_edges}")
+#     plt.hist(all_pt, bins=bin_edges, alpha=0.5, label='All')
+#     plt.hist(matched_pt, bins=bin_edges, alpha=0.5, label='Matched')
+#     plt.xlabel('pt')
+#     plt.ylabel('Frequency')
+#     plt.title('Histogram of All vs. Matched pT')
+#     plt.legend()
+#     plt.show()
+
+#     # 2) Compute Efficiency per bin
+#     bin_counts_all, bin_edges = np.histogram(all_pt, bins=bin_edges)
+#     bin_counts_matched, _     = np.histogram(matched_pt, bins=bin_edges)
+#     print(f"bin_counts_all: {bin_counts_all}, bin_counts_matched: {bin_counts_matched}")
+#     print(f"bin_edges: {bin_edges}")
+
+#     # Avoid divide-by-zero by checking bin_counts_all before dividing
+#     efficiency = np.zeros_like(bin_counts_all, dtype=float)
+#     mask = bin_counts_all > 0
+#     efficiency[mask] = bin_counts_matched[mask] / bin_counts_all[mask]
+#     print(f"efficiency: {efficiency}")
+
+#     # 3) Plot Efficiency vs. pT
+#     # Use the bin centers for plotting
+#     bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+#     plt.plot(bin_centers, efficiency, marker='o', linestyle='-')
+#     plt.xlabel('pt')
+#     plt.ylabel('Efficiency')
+#     plt.title('Matching Efficiency vs. pT')
+#     plt.ylim(0, 1)  # Efficiency ranges from 0 to 1
+#     plt.show()
+
+def plot_eff(all_pt_hist, matched_pt_hist):
+    """
+    Plot efficiency from histogram data.
+    
+    Parameters:
+        all_pt_hist: Tuple of (counts, bin_edges) from np.histogram
+        matched_pt_hist: Tuple of (counts, bin_edges) from np.histogram
+    """
+    # Extract histogram data
+    bin_counts_all, bin_edges = all_pt_hist
+    bin_counts_matched, _ = matched_pt_hist
+    
+    # 1) Plot histograms using the bin data
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    plt.figure(figsize=(10, 6))
+    plt.bar(bin_centers, bin_counts_all, width=bin_edges[1]-bin_edges[0], 
+            alpha=0.5, label='All', align='center')
+    plt.bar(bin_centers, bin_counts_matched, width=bin_edges[1]-bin_edges[0], 
+            alpha=0.5, label='Matched', align='center')
+    plt.xlabel('pT (GeV/c)')
     plt.ylabel('Frequency')
     plt.title('Histogram of All vs. Matched pT')
     plt.legend()
+    plt.grid(True, alpha=0.3)
     plt.show()
 
-    # 2) Compute Efficiency per bin
-    bin_counts_all, bin_edges = np.histogram(all_pt, bins=bin_edges)
-    bin_counts_matched, _     = np.histogram(matched_pt, bins=bin_edges)
-    print(f"bin_counts_all: {bin_counts_all}, bin_counts_matched: {bin_counts_matched}")
-    print(f"bin_edges: {bin_edges}")
-
-    # Avoid divide-by-zero by checking bin_counts_all before dividing
+    # 2) Compute and plot efficiency
     efficiency = np.zeros_like(bin_counts_all, dtype=float)
     mask = bin_counts_all > 0
     efficiency[mask] = bin_counts_matched[mask] / bin_counts_all[mask]
-    print(f"efficiency: {efficiency}")
-
-    # 3) Plot Efficiency vs. pT
-    # Use the bin centers for plotting
-    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-
+    
+    plt.figure(figsize=(10, 6))
     plt.plot(bin_centers, efficiency, marker='o', linestyle='-')
-    plt.xlabel('pt')
+    plt.xlabel('pT (GeV/c)')
     plt.ylabel('Efficiency')
     plt.title('Matching Efficiency vs. pT')
-    plt.ylim(0, 1)  # Efficiency ranges from 0 to 1
+    plt.ylim(0, 1.1)  # Efficiency ranges from 0 to 1
+    plt.grid(True, alpha=0.3)
     plt.show()
+    
+    # Print some statistics
+    print(f"Overall efficiency: {sum(bin_counts_matched)/sum(bin_counts_all):.4f}")
+    return efficiency, bin_centers

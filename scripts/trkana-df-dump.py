@@ -7,7 +7,8 @@ import plotly.express as px
 from util import *
 
 # data_file = "../macro/2025-04-01-meeting/testout.root"
-data_file = "../macro/testout-low-centrality-1event.root"
+# data_file = "../macro/testout-low-centrality-1event.root"
+data_file = "../macro/2025-04-06-40event/testout.root"
 data = uproot.open(data_file)["T;1"]
 
 interactive_validation = False
