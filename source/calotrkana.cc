@@ -348,6 +348,11 @@ int calotrkana::process_event(PHCompositeNode *topNode)
       findNode::getClass<TowerInfoContainer>(topNode, "TOWERINFO_CALIB_CEMC");
   RawTowerGeomContainer *CEMC_geom =
       findNode::getClass<RawTowerGeomContainer>(topNode, "TOWERGEOM_CEMC");
+  if (!CEMC_towers_sim || !CEMC_geom) {
+  std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No CEMC "
+               "towers found"
+            << std::endl;
+  }
 
   int CEMCsize = CEMC_towers_sim->size();
   for (int i = 0; i < CEMCsize; i++)
@@ -747,6 +752,11 @@ int calotrkana::process_event(PHCompositeNode *topNode)
   // loop over all TPC seeds (use raw arrrays)
   int tpc_seed_start_idx = 0;
   SvtxTrackMap *trackmap = findNode::getClass<SvtxTrackMap>(topNode, "SvtxTrackMap");
+  if (!trackmap)
+  {
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No SvtxTrackMap found" << std::endl;
+    return Fun4AllReturnCodes::ABORTEVENT;
+  }
   for (const auto &[key, track] : *trackmap)
   {
     if (!track)
