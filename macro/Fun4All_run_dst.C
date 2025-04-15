@@ -8,6 +8,7 @@
 #include <G4_Centrality.C>
 #include <Trkr_RecoInit.C>
 #include <Trkr_Clustering.C>
+#include <Trkr_Reco.C>
 
 #include <calowaveformsim/CaloWaveformSim.h>
 
@@ -49,7 +50,7 @@ R__LOAD_LIBRARY(libTrackingDiagnostics.so)
 R__LOAD_LIBRARY(libtrack_reco.so)
 
 void Fun4All_run_dst(
-    const int nEvents = 1,
+    const int nEvents = 30,
     const string &inputFile0 = "g4hits.list",
     // const string &inputFile1 = "dst_global.list",
     const string &inputFile1 = "dst_calo_waveform.list",
@@ -146,6 +147,16 @@ void Fun4All_run_dst(
   Micromegas_Clustering();
 
   // TPC seeder
+  enum TRACKING_RECO_MODE
+  {
+    FULL_RECO,
+    TPC_SEEDING_ONLY
+  };
+  TRACKING_RECO_MODE Tracking_Reco_Mode = FULL_RECO;
+  if (Tracking_Reco_Mode == FULL_RECO) {
+    // Tracking_Reco();
+    Tracking_Reco_TrackSeed();
+  } else if (Tracking_Reco_Mode == TPC_SEEDING_ONLY)
   {
     int verbosity = std::max(Enable::VERBOSITY, Enable::TRACKING_VERBOSITY);
     auto seeder = new PHCASeeding("PHCASeeding");
@@ -169,7 +180,7 @@ void Fun4All_run_dst(
     seeder->SetMinClustersPerTrack(3);
     seeder->useFixedClusterError(true);
 
-    seeder->set_pp_mode(true);
+    seeder->set_pp_mode(false);
     se->registerSubsystem(seeder);
   }
 
@@ -190,9 +201,9 @@ void Fun4All_run_dst(
   // Centrality();
 
   calotrkana *caloana24 = new calotrkana("calotrkana", "testout.root");
-  caloana24->set_npart_range(0, 32);
+  // caloana24->set_npart_range(0, 32);
   se->registerSubsystem(caloana24);
-  se->skip(1);
+  // se->skip(1);
 
   se->run(nEvents);
   CDBInterface::instance()->Print(); // print used DB files
