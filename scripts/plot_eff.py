@@ -7,13 +7,14 @@ total_matched_hist = np.zeros(len(bin_edges) - 1, dtype=int)
 total_all_hist = np.zeros(len(bin_edges) - 1, dtype=int)
 
 # Loop to read and process files from event_0 to event_10
-for ievent in range(1):
+for ievent in range(0, 10):
+    print (f"Processing event {ievent}...")
     with pd.HDFStore(f'data_event_{ievent}.h5', mode='r') as store:
         clusters = store['clusters']      # Saved as table format
         seeds = store['seeds']            # Saved as fixed format
         particles = store['particles']    # Saved as fixed format
 
-        ncommon = 5  # change to your desired threshold
+        ncommon = 10  # change to your desired threshold
         matched_pt = match_particles_to_seeds_optimized(particles, seeds, ncommon)
         all_pt = particles['pt'].tolist()
 

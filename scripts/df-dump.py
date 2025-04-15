@@ -8,7 +8,9 @@ from util import *
 
 # data_file = "../macro/2025-04-01-meeting/testout.root"
 # data_file = "../macro/testout-low-centrality-1event.root"
-data_file = "../macro/2025-04-06-40event/testout.root"
+# data_file = "../macro/2025-04-06-40event/testout.root"
+# data_file = "../macro/testout-30event.root"
+data_file = "../macro/2025-04-08-full-seeding-30event/testout.root"
 data = uproot.open(data_file)["T;1"]
 
 interactive_validation = False
@@ -45,7 +47,7 @@ if interactive_validation:
 
 # %%
 
-for ievent in range(1):
+for ievent in range(0, 2):
     clusters = get_clusters(data, ievent)
     cid_to_index = {cid: index for index, cid in enumerate(clusters['cid'])}
     pid_to_cids = clusters.groupby('ptid')['cid'].apply(list).to_dict()
