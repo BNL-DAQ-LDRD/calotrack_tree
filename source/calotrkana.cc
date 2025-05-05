@@ -305,7 +305,8 @@ int calotrkana::process_event(PHCompositeNode *topNode)
   }
 
   // loop over truth primary particles
-  PHG4TruthInfoContainer::ConstRange range =
+//std::cout<<"truthinfo:"<<std::endl; 
+ PHG4TruthInfoContainer::ConstRange range =
       truthinfo->GetPrimaryParticleRange();
   // set of primary particles
   std::set<PHG4Particle *> primary_particles;
@@ -342,7 +343,8 @@ int calotrkana::process_event(PHCompositeNode *topNode)
     }
     secondary_particles.insert(truth);
   }
-
+//std::cout<<"calo:"<<std::endl;
+ if(!m_tracking_only) {
   // CEMC
   TowerInfoContainer *CEMC_towers_sim =
       findNode::getClass<TowerInfoContainer>(topNode, "TOWERINFO_CALIB_CEMC");
@@ -542,6 +544,8 @@ int calotrkana::process_event(PHCompositeNode *topNode)
       exit(1);
     }
   }
+  }
+//std::cout<<"tracking"<<std::endl;
   // find secondary particles associated with tack clusters
   if (!m_svtxEvalStack)
   {

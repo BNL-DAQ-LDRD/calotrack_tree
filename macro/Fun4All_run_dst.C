@@ -31,7 +31,7 @@
 
 #include <centrality/CentralityReco.h>
 
-//tracking
+// tracking
 #include <trackreco/PHCASeeding.h>
 
 #include <trackingdiagnostics/TrackSeedTrackMapConverter.h>
@@ -73,7 +73,7 @@ void Fun4All_run_dst(
   Enable::CDB = true;
   rc->set_StringFlag("CDB_GLOBALTAG", cdbtag);
   rc->set_uint64Flag("TIMESTAMP", 19);
-  //get the first line of inputFile0
+  // get the first line of inputFile0
   ifstream infile(inputFile0);
   string line;
   getline(infile, line);
@@ -195,8 +195,8 @@ void Fun4All_run_dst(
     converter->Verbosity(verbosity);
     se->registerSubsystem(converter);
   }
-  //this is in TrackingInit();
-  //ACTSGEOM::ActsGeomInit();
+  // this is in TrackingInit();
+  // ACTSGEOM::ActsGeomInit();
 
   // Centrality();
 
