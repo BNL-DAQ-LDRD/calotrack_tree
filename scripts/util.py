@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.express as px
+from scipy.stats import binom
+from scipy.stats import beta
 
 
 def get_clusters(data, event_id):
@@ -42,7 +44,9 @@ def get_particles(data, event_id, clusters, cid_to_index, pid_to_cids):
     py = data["particle_py"].array(library="np")[event_id]
     pz = data["particle_pz"].array(library="np")[event_id]
     pt = [np.sqrt(px**2 + py**2) for px, py in zip(px, py)]
-    df = pd.DataFrame({"ptid": ptid, "ppid": ppid, "pt": pt, "pz": pz, "cids": cids, "x": lists_of_x, "y": lists_of_y, "z": lists_of_z})
+    eta = np.arctanh(pz / np.sqrt(px**2 + py**2 + pz**2))
+    vz = data["particle_vtx_z"].array(library="np")[event_id]
+    df = pd.DataFrame({"ptid": ptid, "ppid": ppid, "pt": pt, "pz": pz, "vz": vz, "eta": eta, "cids": cids, "x": lists_of_x, "y": lists_of_y, "z": lists_of_z})
     # df = df[df['ptid'] > 0]
     df = df[df['pt'] > 0.1]
     # Filter particles by particle ID
@@ -161,29 +165,62 @@ def plot_eff(all_pt_hist, matched_pt_hist):
     
     # 1) Plot histograms using the bin data
     bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-    plt.figure(figsize=(10, 6))
-    plt.bar(bin_centers, bin_counts_all, width=bin_edges[1]-bin_edges[0], 
-            alpha=0.5, label='All', align='center')
-    plt.bar(bin_centers, bin_counts_matched, width=bin_edges[1]-bin_edges[0], 
-            alpha=0.5, label='Matched', align='center')
-    plt.xlabel('pT (GeV/c)')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of All vs. Matched pT')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.show()
+
+    # visualize the input histograms
+    # plt.figure(figsize=(10, 6))
+    # plt.bar(bin_centers, bin_counts_all, width=bin_edges[1]-bin_edges[0], 
+    #         alpha=0.5, label='All', align='center')
+    # plt.bar(bin_centers, bin_counts_matched, width=bin_edges[1]-bin_edges[0], 
+    #         alpha=0.5, label='Matched', align='center')
+    # plt.xlabel('pT (GeV/c)')
+    # plt.ylabel('Frequency')
+    # plt.title('Histogram of All vs. Matched pT')
+    # plt.legend()
+    # plt.grid(True, alpha=0.3)
+    # plt.show()
 
     # 2) Compute and plot efficiency
     efficiency = np.zeros_like(bin_counts_all, dtype=float)
     mask = bin_counts_all > 0
     efficiency[mask] = bin_counts_matched[mask] / bin_counts_all[mask]
     
+    # 3) Compute asymmetric confidence intervals
+    confidence_level = 0.68  # ~1σ
+    lower_bounds = np.zeros_like(efficiency)
+    upper_bounds = np.zeros_like(efficiency)
+
+    # binomial confidence intervals
+    for i in range(len(bin_counts_all)):
+        n = bin_counts_all[i]
+        k = bin_counts_matched[i]
+        if n > 0:
+            ci_low, ci_up = binom.interval(confidence_level, n, k / n)
+            lower_bounds[i] = efficiency[i] - ci_low / n
+            upper_bounds[i] = ci_up / n - efficiency[i]
+        else:
+            lower_bounds[i] = 0
+            upper_bounds[i] = 0
+
+    # beta distribution confidence intervals
+    # for i in range(len(bin_counts_all)):
+    #     n = bin_counts_all[i]
+    #     k = bin_counts_matched[i]
+    #     if n > 0:
+    #         alpha_post = k + 0.5
+    #         beta_post = n - k + 0.5
+    #         ci_low = beta.ppf((1 - confidence_level) / 2, alpha_post, beta_post)
+    #         ci_up  = beta.ppf(1 - (1 - confidence_level) / 2, alpha_post, beta_post)
+    #         lower_bounds[i] = efficiency[i] - ci_low
+    #         upper_bounds[i] = ci_up - efficiency[i]
+
+    # 4) Plot efficiency with asymmetric error bars
     plt.figure(figsize=(10, 6))
-    plt.plot(bin_centers, efficiency, marker='o', linestyle='-')
+    plt.errorbar(bin_centers, efficiency, 
+                 yerr=[lower_bounds, upper_bounds], fmt='o', capsize=3)
     plt.xlabel('pT (GeV/c)')
     plt.ylabel('Efficiency')
-    plt.title('Matching Efficiency vs. pT')
-    plt.ylim(0, 1.1)  # Efficiency ranges from 0 to 1
+    plt.title('Matching Efficiency vs. pT with Asymmetric Error Bars')
+    plt.ylim(0, 1.1)
     plt.grid(True, alpha=0.3)
     plt.show()
     

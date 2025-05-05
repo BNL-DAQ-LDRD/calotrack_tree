@@ -47,7 +47,7 @@ if interactive_validation:
 
 # %%
 
-for ievent in range(0, 2):
+for ievent in range(1, 30):
     clusters = get_clusters(data, ievent)
     cid_to_index = {cid: index for index, cid in enumerate(clusters['cid'])}
     pid_to_cids = clusters.groupby('ptid')['cid'].apply(list).to_dict()
