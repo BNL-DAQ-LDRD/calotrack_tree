@@ -228,30 +228,49 @@ def plot_eff(all_pt_hist, matched_pt_hist):
     print(f"Overall efficiency: {sum(bin_counts_matched)/sum(bin_counts_all):.4f}")
     return efficiency, bin_centers
 
-def get_group_ids(groups, n, cid_to_index):
+def get_group_ids(groups, n, cid_to_index, cid_to_pt, bin_edges):
     """
     Maps each point to its group ID.
     
     Parameters:
         groups is a pandas DataFrame with a column 'cids' containing lists of point indices
         n (int): Total number of points
+        cid_to_pt (dict): Mapping from cid to pt
+        bin_edges (list): Bin edges for histogramming
         
     Returns:
-        list: A list of length n, where each element is the group ID or -1 if the point is not in any group
+        list of list, first index is corresponding to bin index
     """
-    # Start with all points assigned to no group (-1)
-    group_ids = [-1] * n
-        
-    # Iterate through each group
-    for idx, group in groups.iterrows():
-        # Assign the group id to each point in this group's cids
+    # Initialize a list of lists to store the ids for each pt bin
+    bin_ids = [[-1]*n for _ in range(len(bin_edges) - 1)]
+    
+    # Process each group
+    for groupid, group in groups.iterrows():
         for cid in group['cids']:
-            cindex = cid_to_index.get(cid, None)
-            if cindex is not None:
-                # Check if the cid is within bounds
-                if cindex < n:
-                    group_ids[cindex] = idx
-                else:
-                    print(f"Warning: cindex {cindex} is out of bounds for n={n}.")
+            if cid in cid_to_pt:
+                pt = cid_to_pt[cid]
+                # Find which bin this pt belongs to
+                bin_idx = np.digitize(pt, bin_edges) - 1
+                # Only store if it falls within our bins
+                if 0 <= bin_idx < len(bin_edges) - 1:
+                    # If cid has an index, add it to the appropriate bin
+                    if cid in cid_to_index:
+                        bin_ids[bin_idx][cid_to_index[cid]] = groupid # overwrite if already exists
+    return bin_ids
 
-    return group_ids
+def cid_to_pt_mapping(particles):
+    """
+    Create a mapping from cid to pt.
+    
+    Parameters:
+        particles is a pandas DataFrame with a column 'cids' containing lists of point indices
+        n (int): Total number of points
+        
+    Returns:
+        dict: Mapping from cid to pt
+    """
+    cid_to_pt = {}
+    for _, particle in particles.iterrows():
+        for cid in particle['cids']:
+            cid_to_pt[cid] = particle['pt'] # overwrite if already exists
+    return cid_to_pt
