@@ -10,6 +10,7 @@ ref: https://github.com/sPHENIX-Collaboration/tutorials/blob/master/CreateSubsys
 Run:
 ```bash
 root -l -q Fun4All_run_dst.C >& log
+root -l -q Fun4All_G4_sPHENIX.C\(1\) >& log
 ```
 
 

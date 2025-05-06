@@ -219,7 +219,7 @@ def plot_eff(all_pt_hist, matched_pt_hist):
                  yerr=[lower_bounds, upper_bounds], fmt='o', capsize=3)
     plt.xlabel('pT (GeV/c)')
     plt.ylabel('Efficiency')
-    plt.title('Matching Efficiency vs. pT with Asymmetric Error Bars')
+    plt.title('Matching Efficiency vs. pT')
     plt.ylim(0, 1.1)
     plt.grid(True, alpha=0.3)
     plt.show()
@@ -227,3 +227,31 @@ def plot_eff(all_pt_hist, matched_pt_hist):
     # Print some statistics
     print(f"Overall efficiency: {sum(bin_counts_matched)/sum(bin_counts_all):.4f}")
     return efficiency, bin_centers
+
+def get_group_ids(groups, n, cid_to_index):
+    """
+    Maps each point to its group ID.
+    
+    Parameters:
+        groups is a pandas DataFrame with a column 'cids' containing lists of point indices
+        n (int): Total number of points
+        
+    Returns:
+        list: A list of length n, where each element is the group ID or -1 if the point is not in any group
+    """
+    # Start with all points assigned to no group (-1)
+    group_ids = [-1] * n
+        
+    # Iterate through each group
+    for idx, group in groups.iterrows():
+        # Assign the group id to each point in this group's cids
+        for cid in group['cids']:
+            cindex = cid_to_index.get(cid, None)
+            if cindex is not None:
+                # Check if the cid is within bounds
+                if cindex < n:
+                    group_ids[cindex] = idx
+                else:
+                    print(f"Warning: cindex {cindex} is out of bounds for n={n}.")
+
+    return group_ids
