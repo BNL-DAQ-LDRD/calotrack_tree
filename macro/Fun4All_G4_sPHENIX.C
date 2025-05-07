@@ -551,105 +551,154 @@ int Fun4All_G4_sPHENIX(
     }
   if (Enable::MICROMEGAS_CLUSTER) Micromegas_Clustering();
 
-  if (Enable::TRACKING_TRACK)
+  // if (Enable::TRACKING_TRACK)
+  // {
+  //   Tracking_Reco();
+  // }
+
+  // Replace full tracking with customized ones
+  enum TRACKING_RECO_MODE
   {
-    Tracking_Reco();
-  }
-
-
-
-  if(Enable::TRACKING_DIAGNOSTICS)
+    FULL_RECO,
+    TPC_SEEDING_ONLY
+  };
+  TRACKING_RECO_MODE Tracking_Reco_Mode = FULL_RECO;
+  if (Tracking_Reco_Mode == FULL_RECO) {
+    // Tracking_Reco();
+    Tracking_Reco_TrackSeed();
+  } else if (Tracking_Reco_Mode == TPC_SEEDING_ONLY)
+  {
+    int verbosity = std::max(Enable::VERBOSITY, Enable::TRACKING_VERBOSITY);
+    auto seeder = new PHCASeeding("PHCASeeding");
+    double fieldstrength = std::numeric_limits<double>::quiet_NaN(); // set by isConstantField if constant
+    bool ConstField = isConstantField(G4MAGNET::magfield_tracking, fieldstrength);
+    if (ConstField)
     {
-      const std::string kshortFile = "./kshort_" + outputFile;
-      const std::string residualsFile = "./residuals_" + outputFile;
-
-      G4KshortReconstruction(kshortFile);
-      seedResiduals(residualsFile);
+      seeder->useConstBField(true);
+      seeder->constBField(fieldstrength);
     }
+    else
+    {
+      seeder->set_field_dir(-1 * G4MAGNET::magfield_rescale);
+      seeder->useConstBField(false);
+      seeder->magFieldFile(G4MAGNET::magfield_tracking); // to get charge sign right
+    }
+    seeder->Verbosity(verbosity);
+    seeder->SetLayerRange(7, 55);
+    seeder->SetSearchWindow(1.5, 0.05); // (z width, phi width)
+    seeder->SetMinHitsPerCluster(0);
+    seeder->SetMinClustersPerTrack(3);
+    seeder->useFixedClusterError(true);
 
-
-  //-----------------
-  // Global Vertexing
-  //-----------------
-
-  if (Enable::GLOBAL_RECO && Enable::GLOBAL_FASTSIM)
-  {
-    cout << "You can only enable Enable::GLOBAL_RECO or Enable::GLOBAL_FASTSIM, not both" << endl;
-    gSystem->Exit(1);
-  }
-  if (Enable::GLOBAL_RECO)
-  {
-    Global_Reco();
-  }
-  else if (Enable::GLOBAL_FASTSIM)
-  {
-    Global_FastSim();
+    seeder->set_pp_mode(false);
+    se->registerSubsystem(seeder);
   }
 
-  //-----------------
-  // Centrality Determination
-  //-----------------
-
-  if (Enable::CENTRALITY)
+  // convert the SvtxTrackSeed to SvtxTrack
   {
-      Centrality();
+    int verbosity = std::max(Enable::VERBOSITY, Enable::TRACKING_VERBOSITY);
+
+    auto converter = new TrackSeedTrackMapConverter;
+    // Default set to full SvtxTrackSeeds. Can be set to
+    // SiliconTrackSeedContainer or TpcTrackSeedContainer
+    converter->setTrackSeedName("TpcTrackSeedContainer");
+    converter->setFieldMap(G4MAGNET::magfield_tracking);
+    converter->Verbosity(verbosity);
+    se->registerSubsystem(converter);
   }
 
-  //-----------------
-  // Calo Trigger Simulation
-  //-----------------
+  // if(Enable::TRACKING_DIAGNOSTICS)
+  //   {
+  //     const std::string kshortFile = "./kshort_" + outputFile;
+  //     const std::string residualsFile = "./residuals_" + outputFile;
 
-  if (Enable::CALOTRIGGER)
-  {
-    CaloTrigger_Sim();
-  }
-
-  //---------
-  // Jet reco
-  //---------
-
-  if (Enable::JETS) Jet_Reco();
-  if (Enable::HIJETS) HIJetReco();
-
-  if (Enable::PARTICLEFLOW) ParticleFlow();
-
-  //----------------------
-  // Simulation evaluation
-  //----------------------
-  string outputroot = outputFile;
-  string remove_this = ".root";
-  size_t pos = outputroot.find(remove_this);
-  if (pos != string::npos)
-  {
-    outputroot.erase(pos, remove_this.length());
-  }
-
-  if (Enable::TRACKING_EVAL) Tracking_Eval(outputroot + "_g4svtx_eval.root");
-
-  if (Enable::CEMC_EVAL) CEMC_Eval(outputroot + "_g4cemc_eval.root");
-
-  if (Enable::HCALIN_EVAL) HCALInner_Eval(outputroot + "_g4hcalin_eval.root");
-
-  if (Enable::HCALOUT_EVAL) HCALOuter_Eval(outputroot + "_g4hcalout_eval.root");
-
-  if (Enable::JETS_EVAL) Jet_Eval(outputroot + "_g4jet_eval.root");
-
-  if (Enable::DSTREADER) G4DSTreader(outputroot + "_DSTReader.root");
+  //     G4KshortReconstruction(kshortFile);
+  //     seedResiduals(residualsFile);
+  //   }
 
 
+  // //-----------------
+  // // Global Vertexing
+  // //-----------------
 
-  if (Enable::USER) UserAnalysisInit();
+  // if (Enable::GLOBAL_RECO && Enable::GLOBAL_FASTSIM)
+  // {
+  //   cout << "You can only enable Enable::GLOBAL_RECO or Enable::GLOBAL_FASTSIM, not both" << endl;
+  //   gSystem->Exit(1);
+  // }
+  // if (Enable::GLOBAL_RECO)
+  // {
+  //   Global_Reco();
+  // }
+  // else if (Enable::GLOBAL_FASTSIM)
+  // {
+  //   Global_FastSim();
+  // }
 
-  // Writes electrons from conversions to a new track map on the node tree
-  // the ntuple file is for diagnostics, it is produced only if the flag is set in G4_Tracking.C
-  if(G4TRACKING::filter_conversion_electrons) Filter_Conversion_Electrons(outputroot + "_secvert_ntuple.root");
+  // //-----------------
+  // // Centrality Determination
+  // //-----------------
+
+  // if (Enable::CENTRALITY)
+  // {
+  //     Centrality();
+  // }
+
+  // //-----------------
+  // // Calo Trigger Simulation
+  // //-----------------
+
+  // if (Enable::CALOTRIGGER)
+  // {
+  //   CaloTrigger_Sim();
+  // }
+
+  // //---------
+  // // Jet reco
+  // //---------
+
+  // if (Enable::JETS) Jet_Reco();
+  // if (Enable::HIJETS) HIJetReco();
+
+  // if (Enable::PARTICLEFLOW) ParticleFlow();
+
+  // //----------------------
+  // // Simulation evaluation
+  // //----------------------
+  // string outputroot = outputFile;
+  // string remove_this = ".root";
+  // size_t pos = outputroot.find(remove_this);
+  // if (pos != string::npos)
+  // {
+  //   outputroot.erase(pos, remove_this.length());
+  // }
+
+  // if (Enable::TRACKING_EVAL) Tracking_Eval(outputroot + "_g4svtx_eval.root");
+
+  // if (Enable::CEMC_EVAL) CEMC_Eval(outputroot + "_g4cemc_eval.root");
+
+  // if (Enable::HCALIN_EVAL) HCALInner_Eval(outputroot + "_g4hcalin_eval.root");
+
+  // if (Enable::HCALOUT_EVAL) HCALOuter_Eval(outputroot + "_g4hcalout_eval.root");
+
+  // if (Enable::JETS_EVAL) Jet_Eval(outputroot + "_g4jet_eval.root");
+
+  // if (Enable::DSTREADER) G4DSTreader(outputroot + "_DSTReader.root");
 
 
-  //======================
-  // Run KFParticle on evt
-  //======================
-  if (Enable::KFPARTICLE && Input::UPSILON) KFParticle_Upsilon_Reco();
-  if (Enable::KFPARTICLE && Input::DZERO) KFParticle_D0_Reco();
+
+  // if (Enable::USER) UserAnalysisInit();
+
+  // // Writes electrons from conversions to a new track map on the node tree
+  // // the ntuple file is for diagnostics, it is produced only if the flag is set in G4_Tracking.C
+  // if(G4TRACKING::filter_conversion_electrons) Filter_Conversion_Electrons(outputroot + "_secvert_ntuple.root");
+
+
+  // //======================
+  // // Run KFParticle on evt
+  // //======================
+  // if (Enable::KFPARTICLE && Input::UPSILON) KFParticle_Upsilon_Reco();
+  // if (Enable::KFPARTICLE && Input::DZERO) KFParticle_D0_Reco();
 
 
   calotrkana *caloana24 = new calotrkana("calotrkana","testout.root");
@@ -659,21 +708,21 @@ int Fun4All_G4_sPHENIX(
   // Standard QAs
   //----------------------
 
-  if (Enable::CEMC_QA) CEMC_QA();
-  if (Enable::HCALIN_QA) HCALInner_QA();
-  if (Enable::HCALOUT_QA) HCALOuter_QA();
+  // if (Enable::CEMC_QA) CEMC_QA();
+  // if (Enable::HCALIN_QA) HCALInner_QA();
+  // if (Enable::HCALOUT_QA) HCALOuter_QA();
 
-  if (Enable::JETS_QA) Jet_QA();
+  // if (Enable::JETS_QA) Jet_QA();
 
-  if (Enable::MVTX_QA) Mvtx_QA();
-  if (Enable::INTT_QA) Intt_QA();
-  if (Enable::TPC_QA) TPC_QA();
-  if (Enable::MICROMEGAS_QA) Micromegas_QA();
-  if (Enable::TRACKING_QA) Tracking_QA();
+  // if (Enable::MVTX_QA) Mvtx_QA();
+  // if (Enable::INTT_QA) Intt_QA();
+  // if (Enable::TPC_QA) TPC_QA();
+  // if (Enable::MICROMEGAS_QA) Micromegas_QA();
+  // if (Enable::TRACKING_QA) Tracking_QA();
 
-  if (Enable::TRACKING_QA && Enable::CEMC_QA && Enable::HCALIN_QA && Enable::HCALOUT_QA) QA_G4CaloTracking();
+  // if (Enable::TRACKING_QA && Enable::CEMC_QA && Enable::HCALIN_QA && Enable::HCALOUT_QA) QA_G4CaloTracking();
 
-  if (Enable::TRACK_MATCHING) Track_Matching(outputroot + "_g4trackmatching.root");
+  // if (Enable::TRACK_MATCHING) Track_Matching(outputroot + "_g4trackmatching.root");
 
   //--------------
   // Set up Input Managers
@@ -681,22 +730,22 @@ int Fun4All_G4_sPHENIX(
 
   InputManagers();
 
-  if (Enable::PRODUCTION)
-  {
-    Production_CreateOutputDir();
-  }
+  // if (Enable::PRODUCTION)
+  // {
+  //   Production_CreateOutputDir();
+  // }
 
-  if (Enable::DSTOUT)
-  {
-    string FullOutFile = DstOut::OutputDir + "/" + DstOut::OutputFile;
-    Fun4AllDstOutputManager *out = new Fun4AllDstOutputManager("DSTOUT", FullOutFile);
-    if (Enable::DSTOUT_COMPRESS)
-    {
-      ShowerCompress();
-      DstCompress(out);
-    }
-    se->registerOutputManager(out);
-  }
+  // if (Enable::DSTOUT)
+  // {
+  //   string FullOutFile = DstOut::OutputDir + "/" + DstOut::OutputFile;
+  //   Fun4AllDstOutputManager *out = new Fun4AllDstOutputManager("DSTOUT", FullOutFile);
+  //   if (Enable::DSTOUT_COMPRESS)
+  //   {
+  //     ShowerCompress();
+  //     DstCompress(out);
+  //   }
+  //   se->registerOutputManager(out);
+  // }
   //-----------------
   // Event processing
   //-----------------
@@ -738,7 +787,7 @@ int Fun4All_G4_sPHENIX(
   // QA output
   //-----
 
-  if (Enable::QA) QA_Output(outputroot + "_qa.root");
+  // if (Enable::QA) QA_Output(outputroot + "_qa.root");
 
   //-----
   // Exit
