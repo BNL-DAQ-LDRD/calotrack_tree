@@ -697,7 +697,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         m_reco_cluster_id[m_nRecoClusters] = static_cast<ULong64_t>(key);
         m_reco_cluster_trcluster_id[m_nRecoClusters] = clusterid;
         m_reco_cluster_g4hit_id[m_nRecoClusters] = g4hit_id;
-        m_reco_cluster_g4hit_trkid[m_nRecoClusters] = g4hit->get_trkid();
+        m_reco_cluster_g4hit_trkid[m_nRecoClusters] = g4hit ? g4hit->get_trkid() : 0;
         m_nRecoClusters++;
 
         if (m_nRecoClusters >= trackrecoclustermaxlength)
