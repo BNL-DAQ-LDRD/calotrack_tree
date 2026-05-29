@@ -33,6 +33,7 @@
 
 // tracking
 #include <trackreco/PHCASeeding.h>
+#include <trackreco/ExternalSeeding.h>
 
 #include <trackingdiagnostics/TrackSeedTrackMapConverter.h>
 
@@ -52,18 +53,17 @@ R__LOAD_LIBRARY(libtrack_reco.so)
 void Fun4All_run_dst(
     const int nEvents = 1,
     const string &inputFile0 = "g4hits.list",
-    // const string &inputFile1 = "dst_global.list",
-    const string &inputFile1 = "dst_calo_waveform.list",
+    const string &inputFile1 = "dst_calo_cluster.list",
     const string &inputFile2 = "dst_global.list",
     const string &inputFile3 = "dst_mbd_epd.list",
     const string &inputFile4 = "dst_tracks.list",
-    const string &inputFile5 = "dst_trkr_hit.list",
-    const string &inputFile6 = "dst_truth.list",
+    const string &inputFile5 = "dst_trkr_cluster.list",
+    // const string &inputFile6 = "dst_truth.list",
     const string &outputFile = "output_sim.root",
 
     const string &outputDSTFile = "DST_CALO_WAVEFORM_pp-0000000011-00000.root",
     const string &outDSTdir = ".",
-    const string &cdbtag = "MDC2_ana.435")
+    const string &cdbtag = "MDC2")
 {
 
   Fun4AllServer *se = Fun4AllServer::instance();
@@ -108,9 +108,9 @@ void Fun4All_run_dst(
   g4In->AddListFile(inputFile0, 1);
   se->registerInputManager(g4In);
 
-  Fun4AllInputManager *TruthIn = new Fun4AllDstInputManager("truth");
-  TruthIn->AddListFile(inputFile6, 1);
-  se->registerInputManager(TruthIn);
+  // Fun4AllInputManager *TruthIn = new Fun4AllDstInputManager("truth");
+  // TruthIn->AddListFile(inputFile6, 1);
+  // se->registerInputManager(TruthIn);
 
   // need to redo TPC digitization for the truth association
 
@@ -141,16 +141,17 @@ void Fun4All_run_dst(
   TrackingInit();
 
   // clustering
-  Mvtx_Clustering();
-  Intt_Clustering();
-  TPC_Clustering();
-  Micromegas_Clustering();
+  // Mvtx_Clustering();
+  // Intt_Clustering();
+  // TPC_Clustering();
+  // Micromegas_Clustering();
 
   // TPC seeder
   enum TRACKING_RECO_MODE
   {
     FULL_RECO,
-    TPC_SEEDING_ONLY
+    TPC_SEEDING_ONLY,
+    EXTERNAL_SEEDING
   };
   TRACKING_RECO_MODE Tracking_Reco_Mode = FULL_RECO;
   if (Tracking_Reco_Mode == FULL_RECO) {
@@ -182,6 +183,115 @@ void Fun4All_run_dst(
 
     seeder->set_pp_mode(false);
     se->registerSubsystem(seeder);
+  } else if (Tracking_Reco_Mode == EXTERNAL_SEEDING)
+  {
+    // set up verbosity
+    int verbosity = std::max(Enable::VERBOSITY, Enable::TRACKING_VERBOSITY);
+  
+    // get fun4all server instance
+    auto se = Fun4AllServer::instance();
+  
+    // Assemble silicon clusters into track stubs
+  
+    auto silicon_Seeding = new PHActsSiliconSeeding;
+    silicon_Seeding->Verbosity(verbosity);
+    se->registerSubsystem(silicon_Seeding);
+  
+    auto merger = new PHSiliconSeedMerger;
+    merger->Verbosity(verbosity);
+    se->registerSubsystem(merger);
+
+    auto seeder = new ExternalSeeding("ExternalSeeding");
+    seeder->SetCSVFile("fm.csv");
+  
+    if (TRACKING::pp_mode)
+    {
+      // for pp mode, apply preliminary distortion corrections to TPC clusters before crossing is known
+      // and refit the trackseeds. Replace KFProp fits with the new fit parameters in the TPC seeds.
+      auto prelim_distcorr = new PrelimDistortionCorrection;
+      prelim_distcorr->set_pp_mode(TRACKING::pp_mode);
+      prelim_distcorr->Verbosity(verbosity);
+  
+      if (G4TPC::TPC_GAS_MIXTURE == "NeCF4")
+      {
+        prelim_distcorr->setNeonFraction(G4TPC::NeCF4_Ne_frac);
+        prelim_distcorr->setArgonFraction(G4TPC::NeCF4_Ar_frac);
+        prelim_distcorr->setCF4Fraction(G4TPC::NeCF4_CF4_frac);
+        prelim_distcorr->setNitrogenFraction(G4TPC::NeCF4_N2_frac);
+        prelim_distcorr->setIsobutaneFraction(G4TPC::NeCF4_isobutane_frac);
+      }
+      else if (G4TPC::TPC_GAS_MIXTURE == "ArCF4")
+      {
+        prelim_distcorr->setNeonFraction(G4TPC::ArCF4_Ne_frac);
+        prelim_distcorr->setArgonFraction(G4TPC::ArCF4_Ar_frac);
+        prelim_distcorr->setCF4Fraction(G4TPC::ArCF4_CF4_frac);
+        prelim_distcorr->setNitrogenFraction(G4TPC::ArCF4_N2_frac);
+        prelim_distcorr->setIsobutaneFraction(G4TPC::ArCF4_isobutane_frac);
+      }
+      else if (G4TPC::TPC_GAS_MIXTURE == "ArCF4N2")
+      {
+        prelim_distcorr->setNeonFraction(G4TPC::ArCF4N2_Ne_frac);
+        prelim_distcorr->setArgonFraction(G4TPC::ArCF4N2_Ar_frac);
+        prelim_distcorr->setCF4Fraction(G4TPC::ArCF4N2_CF4_frac);
+        prelim_distcorr->setNitrogenFraction(G4TPC::ArCF4N2_N2_frac);
+        prelim_distcorr->setIsobutaneFraction(G4TPC::ArCF4N2_isobutane_frac);
+      }
+      else if (G4TPC::TPC_GAS_MIXTURE == "ArCF4Isobutane")
+      {
+        prelim_distcorr->setNeonFraction(G4TPC::ArCF4Isobutane_Ne_frac);
+        prelim_distcorr->setArgonFraction(G4TPC::ArCF4Isobutane_Ar_frac);
+        prelim_distcorr->setCF4Fraction(G4TPC::ArCF4Isobutane_CF4_frac);
+        prelim_distcorr->setNitrogenFraction(G4TPC::ArCF4Isobutane_N2_frac);
+        prelim_distcorr->setIsobutaneFraction(G4TPC::ArCF4Isobutane_isobutane_frac);
+      }
+      else
+      {
+      }
+  
+      se->registerSubsystem(prelim_distcorr);
+    }
+  
+    std::cout << "Tracking_Reco_TrackSeed - Using stub matching for Si matching " << std::endl;
+    // The normal silicon association methods
+    // Match the TPC track stubs from the CA seeder to silicon track stubs from PHSiliconTruthTrackSeeding
+    auto silicon_match = new PHSiliconTpcTrackMatching;
+    silicon_match->Verbosity(verbosity);
+    silicon_match->set_pp_mode(TRACKING::pp_mode);
+    std::cout << "PHSiliconTpcTrackMatching pp_mode set to " << TRACKING::pp_mode << std::endl;
+    if (G4TRACKING::SC_CALIBMODE)
+    {
+      // search windows for initial matching with distortions
+      // tuned values are 0.04 and 0.008 in distorted events
+      silicon_match->set_phi_search_window(0.04);
+      silicon_match->set_eta_search_window(0.008);
+    }
+    else
+    {
+      // after distortion corrections and rerunning clustering, default tuned values are 0.02 and 0.004 in low occupancy events
+      silicon_match->set_phi_search_window(0.03);
+      silicon_match->set_eta_search_window(0.005);
+    }
+    silicon_match->set_test_windows_printout(false);  // used for tuning search windows
+    se->registerSubsystem(silicon_match);
+  
+    // Associate Micromegas clusters with the tracks
+    if (Enable::MICROMEGAS)
+    {
+      std::cout << "Tracking_Reco_TrackSeed - Using Micromegas matching " << std::endl;
+  
+      // Match TPC track stubs from CA seeder to clusters in the micromegas layers
+      auto mm_match = new PHMicromegasTpcTrackMatching;
+      mm_match->Verbosity(verbosity);
+      mm_match->set_pp_mode(TRACKING::pp_mode);
+      mm_match->set_rphi_search_window_lyr1(0.2);
+      mm_match->set_rphi_search_window_lyr2(13.0);
+      mm_match->set_z_search_window_lyr1(26.0);
+      mm_match->set_z_search_window_lyr2(0.2);
+  
+      mm_match->set_min_tpc_layer(38);             // layer in TPC to start projection fit
+      mm_match->set_test_windows_printout(false);  // used for tuning search windows only
+      se->registerSubsystem(mm_match);
+    }
   }
 
   {

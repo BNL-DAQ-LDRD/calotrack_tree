@@ -18,6 +18,10 @@
 
 #include <phool/PHCompositeNode.h>
 
+#include <g4detectors/PHG4TpcCylinderGeomContainer.h>
+#include <g4detectors/PHG4TpcCylinderGeom.h>
+#include <g4detectors/PHG4TpcCylinderGeomContainer.h>
+
 #include <g4main/PHG4Hit.h>
 #include <g4main/PHG4HitContainer.h>
 #include <g4main/PHG4HitDefs.h>
@@ -91,6 +95,7 @@
 
 #include <trackbase_historic/SvtxTrack.h>
 #include <trackbase_historic/SvtxTrackMap.h>
+#include <trackbase_historic/TrackAnalysisUtils.h>
 
 #include <g4eval/SvtxEvalStack.h>
 
@@ -197,6 +202,9 @@ int calotrkana::Init(PHCompositeNode *topNode)
   T->Branch("tpc_seeds_id", &m_tpc_seeds_id, "tpc_seeds_id[nTPCSeeds]/i");
   T->Branch("tpc_seeds_nclusters", &m_tpc_seeds_nclusters, "tpc_seeds_nclusters[nTPCSeeds]/i");
   T->Branch("tpc_seeds_start_idx", &m_tpc_seeds_start_idx, "tpc_seeds_start_idx[nTPCSeeds]/i");
+  T->Branch("tpc_seeds_dedx", &m_tpc_seeds_dedx, "tpc_seeds_dedx[nTPCSeeds]/F");
+  T->Branch("tpc_seeds_maxparticle_pid", &m_tpc_seeds_maxparticle_pid, "tpc_seeds_maxparticle_pid[nTPCSeeds]/I");
+  T->Branch("tpc_seeds_maxparticle_p", &m_tpc_seeds_maxparticle_p, "tpc_seeds_maxparticle_p[nTPCSeeds]/F");
   T->Branch("tpc_seeds_clusters", &m_tpc_seeds_clusters, "tpc_seeds_clusters[nTPCSeedsClusters]/l");
 
   _pdg = new TDatabasePDG();
@@ -356,7 +364,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
             << std::endl;
   }
 
-  int CEMCsize = CEMC_towers_sim->size();
+  int CEMCsize = CEMC_towers_sim ? CEMC_towers_sim->size():0;
   for (int i = 0; i < CEMCsize; i++)
   {
     TowerInfo *tower = CEMC_towers_sim->get_tower_at_channel(i);
@@ -393,7 +401,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
   RawTowerGeomContainer *IHCAL_geom =
       findNode::getClass<RawTowerGeomContainer>(topNode, "TOWERGEOM_HCALIN");
 
-  int IHCALsize = IHCAL_towers_sim->size();
+  int IHCALsize = IHCAL_towers_sim ? IHCAL_towers_sim->size():0;
   for (int i = 0; i < IHCALsize; i++)
   {
     TowerInfo *tower = IHCAL_towers_sim->get_tower_at_channel(i);
@@ -435,7 +443,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
                  "towers found"
               << std::endl;
   }
-  int OHCALsize = OHCAL_towers_sim->size();
+  int OHCALsize = OHCAL_towers_sim ? OHCAL_towers_sim->size():0;
   for (int i = 0; i < OHCALsize; i++)
   {
     TowerInfo *tower = OHCAL_towers_sim->get_tower_at_channel(i);
@@ -478,7 +486,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
               << std::endl;
   }
 
-  unsigned int EPDsize = EPD_towers_sim->size();
+  unsigned int EPDsize = EPD_towers_sim ? EPD_towers_sim->size():0;
   for (unsigned int i = 0; i < EPDsize; i++)
   {
     TowerInfo *tower = EPD_towers_sim->get_tower_at_channel(i);
@@ -510,39 +518,40 @@ int calotrkana::process_event(PHCompositeNode *topNode)
   // MBD
   MbdPmtContainer *mbdpmts = findNode::getClass<MbdPmtContainer>(topNode, "MbdPmtContainer");
   MbdGeom *mbdgeom = findNode::getClass<MbdGeom>(topNode, "MbdGeom");
-  if (!mbdpmts || !mbdgeom)
+  if (mbdpmts && mbdgeom)
   {
+    for (int ipmt = 0; ipmt < mbdpmts->get_npmt(); ipmt++)
+    {
+      float mbdq = mbdpmts->get_pmt(ipmt)->get_q();
+      if (mbdq < 0.25) // from MBD reco hit threshold
+        continue;
+      float mbdt = mbdpmts->get_pmt(ipmt)->get_time();
+      // check if mbdt is undefined
+      if (mbdt > 1E6)
+        continue;
+
+      float x = mbdgeom->get_x(ipmt);
+      float y = mbdgeom->get_y(ipmt);
+      float z = mbdgeom->get_z(ipmt);
+
+      m_Hit_E[m_nHits] = mbdq;
+      m_Hit_x[m_nHits] = x;
+      m_Hit_y[m_nHits] = y;
+      m_Hit_z[m_nHits] = z;
+      m_Hit_t[m_nHits] = mbdt;
+      m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::mbdId);
+      m_nHits++;
+
+      if (m_nHits >= recomaxlength)
+      {
+        std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nHits exceeds max length" << std::endl;
+        exit(1);
+      }
+    }
+  } else {
     std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No MBD "
                  "pmts found"
               << std::endl;
-  }
-  for (int ipmt = 0; ipmt < mbdpmts->get_npmt(); ipmt++)
-  {
-    float mbdq = mbdpmts->get_pmt(ipmt)->get_q();
-    if (mbdq < 0.25) // from MBD reco hit threshold
-      continue;
-    float mbdt = mbdpmts->get_pmt(ipmt)->get_time();
-    // check if mbdt is undefined
-    if (mbdt > 1E6)
-      continue;
-
-    float x = mbdgeom->get_x(ipmt);
-    float y = mbdgeom->get_y(ipmt);
-    float z = mbdgeom->get_z(ipmt);
-
-    m_Hit_E[m_nHits] = mbdq;
-    m_Hit_x[m_nHits] = x;
-    m_Hit_y[m_nHits] = y;
-    m_Hit_z[m_nHits] = z;
-    m_Hit_t[m_nHits] = mbdt;
-    m_Hit_detid[m_nHits] = static_cast<int>(calotrkana::mbdId);
-    m_nHits++;
-
-    if (m_nHits >= recomaxlength)
-    {
-      std::cout << "calotrkana::process_event(PHCompositeNode *topNode) m_nHits exceeds max length" << std::endl;
-      exit(1);
-    }
   }
   }
 //std::cout<<"tracking"<<std::endl;
@@ -559,6 +568,14 @@ int calotrkana::process_event(PHCompositeNode *topNode)
   // clustereval->set_verbosity(1);
   SvtxTruthEval *trutheval = m_svtxEvalStack->get_truth_eval();
   // trutheval->set_verbosity(2);
+  SvtxTrackEval* trackeval = m_svtxEvalStack->get_track_eval();
+  if (!trackeval)
+  {
+    std::cout << PHWHERE
+              << " calotrkana::process_event - Error - trackeval not found"
+              << std::endl;
+    return Fun4AllReturnCodes::ABORTEVENT;
+  }
   //  tracking
   ActsGeometry *m_tGeometry =
       findNode::getClass<ActsGeometry>(topNode, "ActsGeometry");
@@ -614,6 +631,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
 
         // uint8_t layer = TrkrDefs::getLayer(key);
         // std::cout<<"layer: "<<(int)layer<<std::endl;
+        // std::cout << "key: " << key << ", clustereval: " << clustereval << std::endl;
 
         std::set<PHG4Particle *> truth_withcluster = clustereval->all_truth_particles(key);
         // check if the set it empty
@@ -702,7 +720,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         m_reco_cluster_id[m_nRecoClusters] = static_cast<ULong64_t>(key);
         m_reco_cluster_trcluster_id[m_nRecoClusters] = clusterid;
         m_reco_cluster_g4hit_id[m_nRecoClusters] = g4hit_id;
-        m_reco_cluster_g4hit_trkid[m_nRecoClusters] = g4hit->get_trkid();
+        m_reco_cluster_g4hit_trkid[m_nRecoClusters] = g4hit ? g4hit->get_trkid() : 0;
         m_nRecoClusters++;
 
         if (m_nRecoClusters >= trackrecoclustermaxlength)
@@ -761,12 +779,37 @@ int calotrkana::process_event(PHCompositeNode *topNode)
     std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No SvtxTrackMap found" << std::endl;
     return Fun4AllReturnCodes::ABORTEVENT;
   }
+  auto *tpcGeo = findNode::getClass<PHG4TpcCylinderGeomContainer>(topNode, "CYLINDERCELLGEOM_SVTX");
+  if (!tpcGeo)
+  {
+    std::cout << "calotrkana::process_event(PHCompositeNode *topNode) No TPC geometry found" << std::endl;
+    return Fun4AllReturnCodes::ABORTEVENT;
+  }
+  float layerThicknesses[4] = {0.0, 0.0, 0.0, 0.0};
+  // These are randomly chosen layer thicknesses for the TPC, to get the
+  // correct region thicknesses in an easy to pass way to the helper fxn
+  layerThicknesses[0] = tpcGeo->GetLayerCellGeom(7)->get_thickness();
+  layerThicknesses[1] = tpcGeo->GetLayerCellGeom(8)->get_thickness();
+  layerThicknesses[2] = tpcGeo->GetLayerCellGeom(27)->get_thickness();
+  layerThicknesses[3] = tpcGeo->GetLayerCellGeom(50)->get_thickness();
   for (const auto &[key, track] : *trackmap)
   {
     if (!track)
     {
       continue;
     }
+
+    // dedx stuff
+    auto tpcseed = track->get_tpc_seed();
+    if (!tpcseed)
+    {
+      continue;
+    }
+    m_tpc_seeds_dedx[m_nTPCSeeds] = TrackAnalysisUtils::calc_dedx(tpcseed, clustermap, m_tGeometry, layerThicknesses);
+    PHG4Particle* particle = trackeval->max_truth_particle_by_nclusters(track);
+    m_tpc_seeds_maxparticle_pid[m_nTPCSeeds] = particle ? particle->get_pid() : 0;
+    m_tpc_seeds_maxparticle_p[m_nTPCSeeds] = particle ? sqrt(particle->get_px()*particle->get_px() + particle->get_py()*particle->get_py() + particle->get_pz()*particle->get_pz()) : -1;
+
     int seed_ntpc_clusters = 0;
 
     for (const auto &ckey : get_cluster_keys(track))

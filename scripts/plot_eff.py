@@ -38,9 +38,9 @@ for ievent in progress_bar:
         clusters = store['clusters']      # Saved as fixed format
         seeds = store['seeds']            # Saved as fixed format
         particles = store['particles']    # Saved as fixed format
-       
-# print(f"Number of particles: {len(particles)}")
-        particles = particles[particles['cids'].apply(len) > 20]
+
+        # print(f"Number of particles: {len(particles)}")
+        particles = particles[particles['cids'].apply(len) > 5]
         # print(f"|nclus| > 20: {len(particles)}")
         particles = particles[particles['eta'].apply(abs) < 1.1]
         # print(f"|eta| < 1.1: {len(particles)}")
@@ -88,6 +88,7 @@ for ievent in progress_bar:
             ari = adjusted_rand_score(groupids_particle[ibin], groupids_seed[ibin])
             unbinned_aris[ibin].append(ari)
             # print(f"ievent {ievent}, bin {ibin}: unbinned ARI = {ari:.4f}")
+
         
         # circle fit seeds to get purity
         if len(seeds) == 0:
@@ -113,6 +114,7 @@ for ievent in progress_bar:
         all_seed_pt = circle_fits['pt'].tolist()
         all_seed_hist, _ = np.histogram(all_seed_pt, bins=bin_edges)
         total_all_seed_hist += all_seed_hist
+
 
       
 print("Total Matched histogram:", total_matched_hist)
