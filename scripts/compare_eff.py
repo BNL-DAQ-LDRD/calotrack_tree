@@ -25,7 +25,7 @@ plt.xlim(0,3)
 #plt.grid(True, alpha=0.3)
 
 
-df = pd.read_csv("../../fm4npp_eval/script/efficiency_fm_data_seed9.csv")
+df = pd.read_csv("efficiency_fm_data_seed9.csv")
 
 # Extract relevant columns
 pt = df["pT_center"]
