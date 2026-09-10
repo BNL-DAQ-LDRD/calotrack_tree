@@ -45,6 +45,9 @@
 #include <TSystem.h>
 #include <TTree.h>
 #include <TObject.h>
+#include <algorithm>
+#include <cstdlib>
+#include <map>
 #include <phhepmc/PHHepMCGenEvent.h>
 #include <phhepmc/PHHepMCGenEventMap.h>
 
@@ -710,6 +713,26 @@ int calotrkana::process_event(PHCompositeNode *topNode)
           std::cout << "calotrkana::process_event(PHCompositeNode *topNode) truth cluster is nullptr" << std::endl;
         }
         */
+        std::map<int, float> edep_by_trkid;
+        for (PHG4Hit *hit : clustereval->all_truth_hits(key))
+        {
+          int tid = hit->get_trkid();
+          while (tid < 0)
+          {
+            PHG4Particle *part = truthinfo->GetParticle(tid);
+            if (!part || std::abs(part->get_pid()) != 11)
+            {
+              break;
+            }
+            tid = part->get_parent_id();
+          }
+          edep_by_trkid[tid] += hit->get_edep();
+        }
+        int g4hit_trkid = 0;
+        if (!edep_by_trkid.empty())
+        {
+          g4hit_trkid = std::max_element(edep_by_trkid.begin(), edep_by_trkid.end(), [](const auto &a, const auto &b) { return a.second < b.second; })->first;
+        }
         m_reco_cluster_E[m_nRecoClusters] = e;
         m_reco_cluster_x[m_nRecoClusters] = x;
         m_reco_cluster_y[m_nRecoClusters] = y;
@@ -720,7 +743,7 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         m_reco_cluster_id[m_nRecoClusters] = static_cast<ULong64_t>(key);
         m_reco_cluster_trcluster_id[m_nRecoClusters] = clusterid;
         m_reco_cluster_g4hit_id[m_nRecoClusters] = g4hit_id;
-        m_reco_cluster_g4hit_trkid[m_nRecoClusters] = g4hit ? g4hit->get_trkid() : 0;
+        m_reco_cluster_g4hit_trkid[m_nRecoClusters] = g4hit_trkid;
         m_nRecoClusters++;
 
         if (m_nRecoClusters >= trackrecoclustermaxlength)
