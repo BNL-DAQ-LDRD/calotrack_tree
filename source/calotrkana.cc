@@ -716,7 +716,11 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         std::map<int, float> edep_by_trkid;
         for (PHG4Hit *hit : clustereval->all_truth_hits(key))
         {
-          int tid = hit->get_trkid();
+          edep_by_trkid[hit->get_trkid()] += hit->get_edep();
+        }
+        for (auto it = edep_by_trkid.begin(); it != edep_by_trkid.end();)
+        {
+          int tid = it->first;
           while (tid < 0)
           {
             PHG4Particle *part = truthinfo->GetParticle(tid);
@@ -725,8 +729,20 @@ int calotrkana::process_event(PHCompositeNode *topNode)
               break;
             }
             tid = part->get_parent_id();
+            if (edep_by_trkid.count(tid))
+            {
+              break;
+            }
           }
-          edep_by_trkid[tid] += hit->get_edep();
+          if (tid != it->first && edep_by_trkid.count(tid))
+          {
+            edep_by_trkid[tid] += it->second;
+            it = edep_by_trkid.erase(it);
+          }
+          else
+          {
+            ++it;
+          }
         }
         int g4hit_trkid = 0;
         if (!edep_by_trkid.empty())
