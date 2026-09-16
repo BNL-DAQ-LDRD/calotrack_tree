@@ -749,6 +749,18 @@ int calotrkana::process_event(PHCompositeNode *topNode)
         {
           g4hit_trkid = std::max_element(edep_by_trkid.begin(), edep_by_trkid.end(), [](const auto &a, const auto &b) { return a.second < b.second; })->first;
         }
+        if (g4hit_trkid != 0)
+        {
+          float best_edep = -1;
+          for (PHG4Hit *hit : clustereval->all_truth_hits(key))
+          {
+            if (hit->get_trkid() == g4hit_trkid && hit->get_edep() > best_edep)
+            {
+              best_edep = hit->get_edep();
+              g4hit_id = hit->get_hit_id();
+            }
+          }
+        }
         m_reco_cluster_E[m_nRecoClusters] = e;
         m_reco_cluster_x[m_nRecoClusters] = x;
         m_reco_cluster_y[m_nRecoClusters] = y;
