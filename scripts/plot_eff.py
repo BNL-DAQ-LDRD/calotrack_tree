@@ -5,11 +5,18 @@ from util import *
 from sklearn.metrics import adjusted_rand_score
 from util import *
 from tqdm import tqdm
-
+from matplotlib.colors import LogNorm
 
 bin_edges = np.linspace(0, 5, 26)  # Define bin edges
 total_matched_hist = np.zeros(len(bin_edges) - 1, dtype=int)
 total_all_hist = np.zeros(len(bin_edges) - 1, dtype=int)
+total_matched_seed_hist = np.zeros(len(bin_edges) -1, dtype=int)
+total_all_seed_hist = np.zeros(len(bin_edges) -1, dtype=int)
+all_truth_pt = []
+all_reco_pt = []
+
+all_reco_ntpc = []
+
 binned_aris = [ [] for _ in range(len(bin_edges) - 1)]
 
 integrated_pt_bins = np.array([0.5, 1.0, 1000.0])  # Example bin edges for pT
@@ -42,10 +49,13 @@ for ievent in progress_bar:
         # particles = particles[particles['ptid']>0]
         # print(f"ptid > 0: {len(particles)}")
 
-        ncommon = 30  # change to your desired threshold
+        ncommon = 24  # change to your desired threshold
         matched_pt = match_particles_to_seeds_optimized(particles, seeds, ncommon)
+       
         all_pt = particles['pt'].tolist()
-
+        
+        all_reco_ntpc.extend((seeds['cids'].apply(len)).tolist())
+        
         matched_hist, _ = np.histogram(matched_pt, bins=bin_edges)
         all_hist, _ = np.histogram(all_pt, bins=bin_edges)
         total_matched_hist += matched_hist
@@ -79,6 +89,34 @@ for ievent in progress_bar:
             unbinned_aris[ibin].append(ari)
             # print(f"ievent {ievent}, bin {ibin}: unbinned ARI = {ari:.4f}")
 
+        
+        # circle fit seeds to get purity
+        if len(seeds) == 0:
+            continue
+        matched_seed_ids = match_seeds_to_particles_optimized(seeds, particles, ncommon)
+        
+        circle_fits = seeds.apply(fit_circle_row, axis=1)
+        circle_fits['pt'] = 0.3 * 1.4 * (circle_fits['radius'] / 100)
+        seeds['center_x'] = circle_fits['center_x']
+        seeds['center_y'] = circle_fits['center_y']
+        seeds['radius'] = circle_fits['radius']
+        seeds['pt'] = circle_fits['pt']
+        
+        matched_seeds = seeds[seeds['matched'] == True]
+        all_truth_pt.extend(matched_seeds['truthpt'].tolist())
+        all_reco_pt.extend(matched_seeds['pt'].tolist())
+        
+        
+        matched_pt_seeds = seeds[seeds['matched'] == True]['pt'].tolist()
+        matched_hist_seed, _ = np.histogram(matched_pt_seeds, bins=bin_edges)
+        total_matched_seed_hist += matched_hist_seed
+        
+        all_seed_pt = circle_fits['pt'].tolist()
+        all_seed_hist, _ = np.histogram(all_seed_pt, bins=bin_edges)
+        total_all_seed_hist += all_seed_hist
+
+
+      
 print("Total Matched histogram:", total_matched_hist)
 print("Total All histogram:", total_all_hist)
 
@@ -109,5 +147,24 @@ plt.grid(True, alpha=0.3)
 plt.savefig('ari_vs_pt.png')
 plt.show()
 
+plt.figure(figsize=(10,6))
+countsntpc, bin_edgesntpc, _ = plt.hist(all_reco_ntpc, bins=50, range=(0,50))
+plt.xlabel('nTPC')
+plt.show()
+np.savez('ntpc_caseed_data.npz', counts=countsntpc, bin_edges=bin_edgesntpc)
+
+bins = [np.linspace(0, 3, 51), np.linspace(0, 3, 51)]  # 50 bins from 0-3 GeV
+
+plt.figure(figsize=(10, 8))
+plt.hist2d(all_truth_pt, all_reco_pt, bins=bins, cmap='viridis', cmin=1, norm=LogNorm(vmin=0.1))
+plt.xlabel('Truth p$_{T}$ [GeV/c]')
+plt.ylabel('Reconstructed p$_{T}$ [GeV/c]')
+plt.colorbar(label='')
+plt.plot([0, max(all_truth_pt)], [0, max(all_truth_pt)], 'r--', lw=2)
+plt.xlim(0, 3)
+plt.ylim(0, 3)
+plt.show()
+
 # Plotting the histograms
-plot_eff((total_all_hist, bin_edges), (total_matched_hist, bin_edges))
+plot_eff((total_all_hist, bin_edges), (total_matched_hist, bin_edges), "caseed_eff.npz")
+plot_eff((total_all_seed_hist, bin_edges), (total_matched_seed_hist, bin_edges), "caseed_pur.npz")

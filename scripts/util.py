@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 from scipy.stats import binom
 from scipy.stats import beta
-
+from scipy.optimize import least_squares
 
 def get_clusters(data, event_id):
     cid = data["reco_cluster_id"].array(library="np")[event_id]
@@ -55,6 +55,51 @@ def get_particles(data, event_id, clusters, cid_to_index, pid_to_cids):
     df = df[df['cids'].apply(len) > 2]
     return df
 
+# Helper function to short-circuit intersection counting
+def has_ncommon_or_more(set_a, set_b, n):
+    """
+    Return True if sets `set_a` and `set_b` share at least `n` elements,
+    checking incrementally so we can stop early.
+    """
+    # Always iterate over the smaller set to reduce lookups
+    if len(set_a) <= len(set_b):
+        smaller, larger = set_a, set_b
+    else:
+        smaller, larger = set_b, set_a
+
+    count = 0
+    for item in smaller:
+        if item in larger:
+            count += 1
+            if count >= n:
+                return True
+    return False
+
+def match_seeds_to_particles_optimized(seeds, particles, ncommon):
+    particle_cid_sets = []
+    for _, particle_row in particles.iterrows():
+        particle_cid_sets.append( (particle_row['pt'], set(particle_row['cids'])) )
+    
+    matched_pts = []
+    matches = pd.Series(False, index=seeds.index)
+    matchedpts = pd.Series(0.0, index=seeds.index)
+    matchedtruthlengths = pd.Series(0, index=seeds.index)
+    for irow, seed_row in seeds.iterrows():
+        seed_cids = set(seed_row['cids'])
+        for ptid, particle_set in particle_cid_sets:
+            nmajor = 0.5*max(len(seed_cids), len(particle_set))
+            
+            if has_ncommon_or_more(seed_cids, particle_set, nmajor):
+                
+                matched_pts.append(seed_row['sid'])
+                matches[irow] = True
+                matchedpts[irow] = ptid
+                matchedtruthlengths[irow] = len(particle_row['cids'])
+                break
+    seeds['matched'] = matches
+    seeds['truthpt'] = matchedpts
+    seeds['truthlength'] = matchedtruthlengths
+    return matched_pts
 # %%
 def match_particles_to_seeds_optimized(particles, seeds, ncommon):
     """
@@ -80,25 +125,7 @@ def match_particles_to_seeds_optimized(particles, seeds, ncommon):
     matched_pts = []
     matches = pd.Series(False, index=particles.index)
 
-    # Helper function to short-circuit intersection counting
-    def has_ncommon_or_more(set_a, set_b, n):
-        """
-        Return True if sets `set_a` and `set_b` share at least `n` elements,
-        checking incrementally so we can stop early.
-        """
-        # Always iterate over the smaller set to reduce lookups
-        if len(set_a) <= len(set_b):
-            smaller, larger = set_a, set_b
-        else:
-            smaller, larger = set_b, set_a
 
-        count = 0
-        for item in smaller:
-            if item in larger:
-                count += 1
-                if count >= n:
-                    return True
-        return False
 
     # For each particle, check if at least one seed matches
     for irow, particle_row in particles.iterrows():
@@ -158,7 +185,72 @@ def match_particles_to_seeds_optimized(particles, seeds, ncommon):
 #     plt.ylim(0, 1)  # Efficiency ranges from 0 to 1
 #     plt.show()
 
-def plot_eff(all_pt_hist, matched_pt_hist):
+
+# Define circle fit function
+def fit_circle(x, y):
+    """
+    Fit a circle to 2D points using least squares
+    Returns (center_x, center_y, radius)
+    """
+    x = np.array(x)
+    y = np.array(y)
+    
+    def calc_residuals(params, x, y):
+        xc, yc, r = params
+        return np.sqrt((x - xc)**2 + (y - yc)**2) - r
+    
+    # Initial guess: center at mean, radius as std
+    x_m = np.mean(x)
+    y_m = np.mean(y)
+    r_guess = np.sqrt((x - x_m)**2 + (y - y_m)**2).mean()
+    
+    result = least_squares(calc_residuals, [x_m, y_m, r_guess], args=(x, y))
+    xc, yc, r = result.x
+    return xc, yc, r
+
+# Apply to each row
+def fit_circle_row(row):
+    x = np.array(row['x'])
+    y = np.array(row['y'])
+    
+    # Check for minimum points
+    if len(x) < 3:
+        return pd.Series({
+            'center_x': np.nan,
+            'center_y': np.nan,
+            'radius': np.nan,
+            'n_points': len(x),
+            'fit_status': 'too_few_points'
+        })
+    
+    # Check for NaN
+    if np.any(np.isnan(x)) or np.any(np.isnan(y)):
+        return pd.Series({
+            'center_x': np.nan,
+            'center_y': np.nan,
+            'radius': np.nan,
+            'n_points': len(x),
+            'fit_status': 'contains_nan'
+        })
+    
+    try:
+        center_x, center_y, radius = fit_circle(x, y)
+        return pd.Series({
+            'center_x': center_x,
+            'center_y': center_y,
+            'radius': radius,
+            'n_points': len(x),
+            'fit_status': 'success'
+        })
+    except Exception as e:
+        return pd.Series({
+            'center_x': np.nan,
+            'center_y': np.nan,
+            'radius': np.nan,
+            'n_points': len(x),
+            'fit_status': f'fit_failed: {str(e)}'
+        })
+def plot_eff(all_pt_hist, matched_pt_hist, filename):
     """
     Plot efficiency from histogram data.
     
@@ -223,14 +315,24 @@ def plot_eff(all_pt_hist, matched_pt_hist):
     # 4) Plot efficiency with asymmetric error bars
     plt.figure(figsize=(10, 6))
     plt.errorbar(bin_centers, efficiency, 
-                 yerr=[lower_bounds, upper_bounds], fmt='o', capsize=3)
-    plt.xlabel('pT (GeV/c)')
-    plt.ylabel('Efficiency')
-    plt.title('Matching Efficiency vs. pT')
+                 yerr=[lower_bounds, upper_bounds], fmt='o', capsize=2, markersize=7)
+    plt.xlabel('p$_{T}$ [GeV/c]', fontsize=17)
+    plt.ylabel('Efficiency', fontsize=17)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    #plt.title('Matching Efficiency vs. pT')
     plt.ylim(0, 1.1)
-    plt.grid(True, alpha=0.3)
+    plt.tick_params(which='both', length=10)
+    plt.tick_params(direction="in")
+    plt.tick_params(top=True, right=True)
+    plt.xlim(0,3)
+    #plt.grid(True, alpha=0.3)
     plt.show()
-    
+
+    np.savez(filename,
+         bin_centers=bin_centers,
+         efficiency=efficiency,
+         lower_bounds=lower_bounds,
+         upper_bounds=upper_bounds)
     # Print some statistics
     print(f"Overall efficiency: {sum(bin_counts_matched)/sum(bin_counts_all):.4f}")
     return efficiency, bin_centers
